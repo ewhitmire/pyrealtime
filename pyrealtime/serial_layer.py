@@ -65,7 +65,14 @@ class AsciiSerialLayer(SerialLayer):
         self.skip = True
 
     def get_input(self):
-        line = self.ser.readline().decode('utf-8').strip()
+
+        line = self.ser.readline()
+        try:
+            line = line.decode('utf-8').strip()
+        except UnicodeDecodeError:
+            line = None
+            pass
+
         if self.skip:
             self.skip = False
             return None

@@ -29,6 +29,8 @@ class FigureManager(ProcessLayer):
 
         for plot_key in self.plot_layers.keys():
             plot_layer = self.plot_layers[plot_key]
+            if plot_key not in self.axes_dict:
+                raise KeyError("No axis created for plot %s" % plot_key)
             plot_layer.create_fig(self.fig, self.axes_dict[plot_key])
 
         ani = animation.FuncAnimation(self.fig, self.update_func, init_func=self.init_func, frames=None,
@@ -74,6 +76,7 @@ class PlotLayer(TransformMixin, ThreadLayer):
         self.fps = fps
         self.plot_config = plot_config
         self.ax = None
+        self.series = None
 
         super().__init__(port_in, parent_proc=self.fig_manager, *args, **kwargs)
 
@@ -94,6 +97,13 @@ class PlotLayer(TransformMixin, ThreadLayer):
         self.data_lock = threading.Lock()
         self.ax = ax
 
+        self.series = self.draw_empty_plot(ax)
+        if self.plot_config is not None:
+            self.plot_config(ax)
+
+    def draw_empty_plot(self, ax):
+        raise NotImplementedError
+
     def update_fig(self, data):
         raise NotImplementedError
 
@@ -104,15 +114,10 @@ class PlotLayer(TransformMixin, ThreadLayer):
 class SimplePlotLayer(PlotLayer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.series = []
 
-    def create_fig(self, fig, ax):
-        super().create_fig(fig, ax)
+    def draw_empty_plot(self, ax):
         h, = ax.plot([], [])
-        self.series.append(h)
-        if self.plot_config is not None:
-            self.plot_config(ax)
-        return fig
+        return h,
 
     def post_init(self, data):
         n_channels = 1
@@ -140,4 +145,40 @@ class SimplePlotLayer(PlotLayer):
                 series.set_data(x, data[:, i])
             else:
                 series.set_data(x, data)
+        return self.series
+
+
+class BarPlotLayer(PlotLayer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.series = []
+
+    def draw_empty_plot(self, ax):
+        rects = ax.bar([], [])
+        return rects
+
+    def init_fig(self):
+        for series in self.series:
+            series.set_height([])
+        return self.series
+
+    def post_init(self, data):
+        n_channels = 1
+        if isinstance(data, np.ndarray):
+            n_channels = data.shape[-1]
+
+        x = list(range(n_channels))
+        y = np.zeros((n_channels,))
+        rects = self.ax.bar(x, y)
+        self.series = rects
+
+    def update_fig(self, data):
+        print(self.series[0].get_children())
+        print(data)
+        for (i, bar) in enumerate(self.series[0].get_children()):
+            if isinstance(data, list) or isinstance(data, np.ndarray):
+                print(data[i])
+                bar.set_height(data[i])
+            else:
+                bar.set_height(data)
         return self.series

@@ -65,6 +65,8 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
                 self.post_init(data)
                 self.is_first = False
             data_transformed = self.transform(data)
+            if data_transformed is None:
+                continue
             self.handle_output(data_transformed)
 
     def join(self):
@@ -164,7 +166,7 @@ class MultiOutputMixin(BaseOutputLayer):
         port_list[port] = Port()
 
     def handle_output(self, data):
-        for key in data.keys():
+        for key in list(self.ports.keys()) + list(self.auto_ports.keys()):
             if key in self.ports:
                 port = self.ports[key]
             elif key in self.auto_ports:
