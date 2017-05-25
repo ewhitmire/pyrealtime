@@ -173,11 +173,8 @@ class BarPlotLayer(PlotLayer):
         self.series = rects
 
     def update_fig(self, data):
-        print(self.series[0].get_children())
-        print(data)
-        for (i, bar) in enumerate(self.series[0].get_children()):
+        for (i, bar) in enumerate(self.series.get_children()):
             if isinstance(data, list) or isinstance(data, np.ndarray):
-                print(data[i])
                 bar.set_height(data[i])
             else:
                 bar.set_height(data)
