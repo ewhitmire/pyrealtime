@@ -13,6 +13,7 @@ class LayerManager:
     @staticmethod
     def start():
         for layer in LayerManager.layers:
+            print(layer.name)
             layer.start(LayerManager.stop_event)
 
         for layer in LayerManager.layers:

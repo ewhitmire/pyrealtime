@@ -3,7 +3,10 @@ import numpy as np
 
 
 def comma_decoder(data):
-    data = np.array([float(x) for x in data.decode('utf-8').split(',')])
+    try:
+        data = np.array([float(x) for x in data.split(',')])
+    except ValueError:
+        return None
     return data
 
 
@@ -15,11 +18,11 @@ class DecodeLayer(TransformMixin, MultiOutputMixin, ThreadLayer):
             for port_name in port_names:
                 self._register_port(port_name)
 
-    def post_init(self, data):
-        decoded = self.decode(data)
-        if isinstance(decoded, dict):
-            for port_name in decoded.keys():
-                self._register_port(port_name)
+    # def post_init(self, data):
+    #     decoded = self.decode(data)
+    #     if isinstance(decoded, dict):
+    #         for port_name in decoded.keys():
+    #             self._register_port(port_name)
 
     def transform(self, data):
         data_dict = self.decode(data)
