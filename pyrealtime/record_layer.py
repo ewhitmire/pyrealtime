@@ -34,6 +34,7 @@ class RecordLayer(TransformMixin, ThreadLayer):
         if isinstance(line, str):
             line = line.encode('utf-8')
         self.file.write(line)
+        self.file.flush()
 
     @staticmethod
     def make_new_filename():
