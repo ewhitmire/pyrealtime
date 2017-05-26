@@ -10,10 +10,6 @@ from pyrealtime.decode_layer import comma_decoder
 from pyrealtime.layer import ProducerMixin, TransformMixin, ThreadLayer, FPSMixin
 
 
-class PrintLayer(TransformMixin, ThreadLayer):
-    def transform(self, data):
-        print(data)
-        return data
 
 
 class SerialLayer(ProducerMixin, ThreadLayer):

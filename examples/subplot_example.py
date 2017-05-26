@@ -1,8 +1,10 @@
-from pyrealtime.decode_layer import DecodeLayer, BufferLayer
+from pyrealtime.decode_layer import DecodeLayer
 from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plot_layer import PlotLayer, SimplePlotLayer, FigureManager
-from pyrealtime.serial_layer import SerialLayer, PrintLayer, DummyInputLayer
+from pyrealtime.plot_layer import SimplePlotLayer, FigureManager
+from pyrealtime.serial_layer import DummyInputLayer
 import numpy as np
+
+from pyrealtime.utility_layers import BufferLayer
 
 
 def gen_dummy_data():

@@ -1,9 +1,6 @@
 import threading
-import matplotlib
 
 from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer
-
-matplotlib.use('TkAgg')
 
 import time
 from pylab import *
@@ -11,12 +8,14 @@ import matplotlib.animation as animation
 
 
 class FigureManager(ProcessLayer):
-    def __init__(self, create_fig=None, *args, **kwargs):
+    def __init__(self, create_fig=None, fps=30, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fig = None
         self.axes_dict = None
         self.plot_layers = {}
         self.create_fig = create_fig if create_fig is not None else FigureManager.default_create_fig
+        self.anim = None
+        self.fps = fps
 
     @staticmethod
     def default_create_fig(fig):
@@ -33,10 +32,8 @@ class FigureManager(ProcessLayer):
                 raise KeyError("No axis created for plot %s" % plot_key)
             plot_layer.create_fig(self.fig, self.axes_dict[plot_key])
 
-        ani = animation.FuncAnimation(self.fig, self.update_func, init_func=self.init_func, frames=None,
-                                      interval=1000 / plot_layer.fps, blit=True)
-        self.fig.canvas.draw()
-        self.fig.canvas.draw_idle()
+        self.anim = animation.FuncAnimation(self.fig, self.update_func, init_func=self.init_func, frames=None,
+                                      interval=1000 / self.fps, blit=True)
 
     def init_func(self):
         artists = []
@@ -67,13 +64,12 @@ class FigureManager(ProcessLayer):
 
 class PlotLayer(TransformMixin, ThreadLayer):
 
-    def __init__(self, port_in, samples=10, fps=30, fig_manager=None, plot_config=None, plot_key=None, *args, **kwargs):
+    def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, *args, **kwargs):
         self.data_lock = None
         self.samples = samples
         self.buf_data = None
         self.fig_manager = fig_manager if fig_manager is not None else FigureManager()
         self.fig_manager.register_plot(plot_key, self)  # TODO
-        self.fps = fps
         self.plot_config = plot_config
         self.ax = None
         self.series = None
@@ -112,8 +108,9 @@ class PlotLayer(TransformMixin, ThreadLayer):
 
 
 class SimplePlotLayer(PlotLayer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, port_in, ylim=None, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.ylim = ylim
 
     def draw_empty_plot(self, ax):
         h, = ax.plot([], [])
@@ -129,6 +126,8 @@ class SimplePlotLayer(PlotLayer):
 
         self.series = []
         self.ax.set_xlim(0, self.samples)
+        if self.ylim is not None:
+            self.ax.set_ylim(self.ylim)
         for channel in range(n_channels):
             handle, = self.ax.plot([], [], '-', lw=1)
             self.series.append(handle)

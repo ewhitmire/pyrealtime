@@ -1,8 +1,9 @@
-from pyrealtime.decode_layer import BufferLayer
 from pyrealtime.layer_manager import LayerManager
 from pyrealtime.plot_layer import SimplePlotLayer
+from pyrealtime.utility_layers import BufferLayer
 from pyrealtime.serial_layer import DummyInputLayer, AsciiSerialLayer
 import numpy as np
+
 
 
 def gen_dummy_data():
@@ -15,7 +16,7 @@ def plot_config(ax):
 
 
 def main():
-    serial_layer = DummyInputLayer(gen_dummy_data, rate=30, name="dummy input")
+    # serial_layer = DummyInputLayer(gen_dummy_data, rate=30, name="dummy input")
     serial_layer = AsciiSerialLayer(device_name='KitProg', baud_rate=115200)
     buffer = BufferLayer(serial_layer, buffer_size=100, name="buffer")
     SimplePlotLayer(buffer, plot_config=plot_config)

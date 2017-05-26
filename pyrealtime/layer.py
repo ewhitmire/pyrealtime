@@ -10,7 +10,8 @@ class Port(object):
         self.out_queues = []
 
     def get_output(self):
-        out_queue = multiprocessing.Queue()
+        ctx = multiprocessing.get_context('spawn')
+        out_queue = ctx.Queue()
         self.out_queues.append(out_queue)
         return out_queue
 
@@ -21,13 +22,13 @@ class Port(object):
 
 class BaseOutputLayer(object):
     def __init__(self, *args, **kwargs):
-        self.port = Port()
+        self.out_port = Port()
 
     def handle_output(self, data):
-        self.port.handle_output(data)
+        self.out_port.handle_output(data)
 
     def get_output(self):
-        return self.port.get_output()
+        return self.out_port.get_output()
 
 
 class BaseInputLayer(object):
@@ -73,11 +74,6 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
         raise NotImplementedError
 
 
-
-
-# class InProcLayer(BaseLayer): pass
-
-
 class ThreadLayer(BaseLayer):
     def __init__(self, parent_proc=None, *args, **kwargs):
         # print("thread layer init")
@@ -108,7 +104,8 @@ class ProcessLayer(BaseLayer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.process = multiprocessing.Process(target=self.run_proc)
+        ctx = multiprocessing.get_context('spawn')
+        self.process = ctx.Process(target=self.run_proc)
         self.thread_layers = []
         LayerManager.add_layer(self)
 
@@ -154,6 +151,8 @@ class MultiOutputMixin(BaseOutputLayer):
     def get_port(self, port):
         if port in self.ports:
             return self.ports[port]
+        if port in self.auto_ports:
+            return self.auto_ports[port]
         self._register_port(port, auto=True)
         if port in self.auto_ports:
             return self.auto_ports[port]
@@ -179,18 +178,21 @@ class MultiOutputMixin(BaseOutputLayer):
 
 class FPSMixin:
     def __init__(self, time_window=timedelta(seconds=5), *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(print_fps=False, *args, **kwargs)
         self.count = 0
         self.start_time = None
         self.reset()
         self.time_window = time_window
+        self.print_fps = False
+        self.fps = 0
 
     def tick(self):
         t = datetime.now()
         self.count += 1
         if t - self.start_time >= self.time_window:
-            fps = self.count / (t - self.start_time).total_seconds()
-            print(fps)
+            self.fps = self.count / (t - self.start_time).total_seconds()
+            if self.print_fps:
+                print(self.fps)
             self.reset()
 
     def reset(self):
