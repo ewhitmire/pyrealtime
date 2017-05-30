@@ -45,9 +45,6 @@ class UDPOutputLayer(TransformMixin, ThreadLayer):
             # server_address = (self.host, self.port)
             # self.sock.bind(server_address)  # TODO: not right
 
-    def parse(self, data):
-        return data
-
     def encode(self, data):
         return data #  .encode('utf-8')
 

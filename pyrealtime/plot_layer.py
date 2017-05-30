@@ -64,11 +64,11 @@ class FigureManager(ProcessLayer):
 
 class PlotLayer(TransformMixin, ThreadLayer):
 
-    def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, *args, **kwargs):
+    def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, create_fig=None, *args, **kwargs):
         self.data_lock = None
         self.samples = samples
         self.buf_data = None
-        self.fig_manager = fig_manager if fig_manager is not None else FigureManager()
+        self.fig_manager = fig_manager if fig_manager is not None else FigureManager(create_fig=create_fig)
         self.fig_manager.register_plot(plot_key, self)  # TODO
         self.plot_config = plot_config
         self.ax = None
@@ -178,3 +178,21 @@ class BarPlotLayer(PlotLayer):
             else:
                 bar.set_height(data)
         return self.series
+
+
+class TextPlotLayer(PlotLayer):
+    def __init__(self, port_in, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.h_text = None
+
+    def draw_empty_plot(self, ax):
+        ax.set_axis_off()
+        self.h_text = ax.text(0.5, 0.5, "", horizontalalignment='center', verticalalignment='center', fontsize=15)
+        return self.h_text,
+
+    def init_fig(self):
+        return self.update_fig("")
+
+    def update_fig(self, data):
+        self.h_text.set_text(data)
+        return self.h_text,

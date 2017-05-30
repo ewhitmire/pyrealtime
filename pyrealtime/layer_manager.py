@@ -1,9 +1,12 @@
 import multiprocessing
 
+import time
+
 
 class LayerManager:
     layers = []
     stop_event = multiprocessing.Event()
+    input_prompts = multiprocessing.Queue()
 
     @staticmethod
     def add_layer(layer):
@@ -13,8 +16,36 @@ class LayerManager:
     @staticmethod
     def start():
         for layer in LayerManager.layers:
-            print(layer.name)
             layer.start(LayerManager.stop_event)
+
+        while not LayerManager.stop_event.is_set():
+            LayerManager.handle_input()
+            time.sleep(0.1)
 
         for layer in LayerManager.layers:
             layer.join()
+
+    @staticmethod
+    def handle_input():
+        if not LayerManager.input_prompts.empty():
+            input_prompt = LayerManager.input_prompts.get()
+            response = input(input_prompt.prompt)
+            input_prompt.response = response
+            input_prompt.event.set()
+
+    @staticmethod
+    def input(prompt):
+        input_prompt = InputPrompt(prompt)
+        LayerManager.input_prompts.put(input_prompt)
+        return input_prompt.execute()
+
+
+class InputPrompt:
+    def __init__(self, prompt):
+        self.prompt = prompt
+        self.response = None
+        self.event = multiprocessing.Event()
+
+    def execute(self):
+        self.event.wait()
+        return self.response

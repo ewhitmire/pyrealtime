@@ -16,8 +16,9 @@ class Port(object):
         return out_queue
 
     def handle_output(self, data):
-        for queue in self.out_queues:
-            queue.put(data)
+        if data is not None:
+            for queue in self.out_queues:
+                queue.put(data)
 
 
 class BaseOutputLayer(object):
@@ -39,9 +40,11 @@ class BaseInputLayer(object):
 
 class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
-    def __init__(self, name="", *args, **kwargs):
+    def __init__(self, signal_in=None, name="", *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.name = name
+        self.signal_in = signal_in.get_output() if signal_in is not None else None
+        self.signal = None
         self.is_first = True
         self.stop_event = None
 
@@ -57,11 +60,22 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def initialize(self):
         pass
 
+    def get_signal(self):
+        self.signal = None
+        if self.signal_in is not None:
+            while not self.signal_in.empty():
+                self.signal = self.signal_in.get()
+                self.handle_signal(self.signal)
+
+    def handle_signal(self, signal):
+        pass
+
     def process_loop(self):
         while not self.stop_event.is_set():
             data = self.get_input()
             if data is None:
                 continue
+            self.get_signal()
             if self.is_first:
                 self.post_init(data)
                 self.is_first = False
@@ -110,14 +124,12 @@ class ProcessLayer(BaseLayer):
         LayerManager.add_layer(self)
 
     def run_proc(self):
-        print('init child')
         self.init_child_threads()
         self.initialize()
         t = threading.Thread(target=self.process_loop)
         t.daemon = False
         t.start()
 
-        print("starting threads...")
         for thread_layer in self.thread_layers:
             thread_layer.create_thread()
             thread_layer.start(stop_event=self.stop_event)
@@ -172,7 +184,8 @@ class MultiOutputMixin(BaseOutputLayer):
                 port = self.auto_ports[key]
             else:
                 raise NameError("Port %s does not exist" % key)
-            port.handle_output(data[key])
+            if key in data:
+                port.handle_output(data[key])
         super().handle_output(data)
 
 

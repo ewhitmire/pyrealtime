@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import numpy as np
+import scipy.io.wavfile
 
 from pyrealtime.layer import ThreadLayer, TransformMixin
 
@@ -35,6 +36,24 @@ class RecordLayer(TransformMixin, ThreadLayer):
             line = line.encode('utf-8')
         self.file.write(line)
         self.file.flush()
+
+    @staticmethod
+    def make_new_filename():
+        timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
+        return "recording_%s.txt" % timestamp
+
+
+class AudioWriter(TransformMixin, ThreadLayer):
+    def __init__(self, port_in, filename=None, sample_rate=44100, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        if filename is None:
+            filename = RecordLayer.make_new_filename()
+        self.filename = filename
+        self.sample_rate = sample_rate
+
+
+    def transform(self, data):
+        scipy.io.wavfile.write(self.filename, self.sample_rate, data)
 
     @staticmethod
     def make_new_filename():

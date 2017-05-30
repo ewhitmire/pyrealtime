@@ -9,6 +9,62 @@ class PrintLayer(TransformMixin, ThreadLayer):
         return data
 
 
+class AggregateLayer(TransformMixin, ThreadLayer):
+    def __init__(self, port_in, in_place=False, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.buffer = None
+        self.in_place = in_place
+        assert self.in_place  # TODO
+        self.use_np = False
+        self.is_saving = False  # TODO
+        self.should_flush = False  # TODO
+
+    def post_init(self, data):
+        super().post_init(data)
+
+        import numpy as np
+        if isinstance(data, np.ndarray):
+            self.use_np = True
+
+        if self.use_np:
+            import numpy as np
+            if self.in_place:
+                n_channels = data.shape[-1] if len(data.shape) > 1 else 1
+            else:
+                n_channels = data.shape[-1]
+            self.buffer = np.zeros((0, n_channels))
+        else:
+            self.buffer = []
+
+    def handle_signal(self, signal):
+        pass
+
+    def start_saving(self):
+        print('start')
+        self.is_saving = True
+
+    def stop_saving(self):
+        print('stop')
+        self.is_saving = False
+        self.should_flush = True
+
+    def transform(self, data):
+        if self.is_saving:
+            if self.use_np and len(data.shape) == 1:
+                import numpy as np
+                data = np.atleast_2d(data).T
+
+            if self.use_np:
+                import numpy as np
+                self.buffer = np.concatenate((self.buffer, data), axis=0)
+            else:
+                self.buffer += data
+
+        if self.should_flush:
+            self.should_flush = False
+            return self.buffer
+        return None
+
 class BufferLayer(TransformMixin, ThreadLayer):
     def __init__(self, port_in, buffer_size=10, in_place=False, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
