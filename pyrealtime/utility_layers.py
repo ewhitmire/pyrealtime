@@ -1,4 +1,5 @@
 import math
+from statistics import mean
 
 from pyrealtime.layer import TransformMixin, ThreadLayer
 
@@ -64,6 +65,7 @@ class AggregateLayer(TransformMixin, ThreadLayer):
             self.should_flush = False
             return self.buffer
         return None
+
 
 class BufferLayer(TransformMixin, ThreadLayer):
     def __init__(self, port_in, buffer_size=10, in_place=False, *args, **kwargs):
@@ -193,3 +195,20 @@ class SlidingWindow(TransformMixin, ThreadLayer):
             extra = n - ((num_frames -1)* frame_step + (frame_len - frame_step))
         return num_frames, extra
 
+
+class MeanLayer(TransformMixin, ThreadLayer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_np = False
+
+    def post_init(self, data):
+        import numpy as np
+        if isinstance(data, np.ndarray):
+            self.use_np = True
+
+    def transform(self, data):
+        if self.use_np:
+            import numpy as np
+            return np.mean(data)
+        else:
+            return mean(data)

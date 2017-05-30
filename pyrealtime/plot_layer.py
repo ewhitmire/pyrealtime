@@ -1,10 +1,11 @@
 import threading
 
-from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer
+from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer, MultiOutputMixin
 
 import time
-from pylab import *
+import copy
 import matplotlib.animation as animation
+from matplotlib import pyplot as plt
 
 
 class FigureManager(ProcessLayer):
@@ -62,7 +63,7 @@ class FigureManager(ProcessLayer):
         self.plot_layers[key] = plot_layer
 
 
-class PlotLayer(TransformMixin, ThreadLayer):
+class PlotLayer(MultiOutputMixin, TransformMixin, ThreadLayer):
 
     def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, create_fig=None, *args, **kwargs):
         self.data_lock = None
@@ -73,12 +74,27 @@ class PlotLayer(TransformMixin, ThreadLayer):
         self.plot_config = plot_config
         self.ax = None
         self.series = None
+        self.to_return = None
 
         super().__init__(port_in, parent_proc=self.fig_manager, *args, **kwargs)
 
     def transform(self, data):
         self.data_lock.acquire()
         self.buf_data = data
+        self.data_lock.release()
+
+        self.data_lock.acquire()
+        to_return_copy = copy.copy(self.to_return)
+        self.to_return = None
+        self.data_lock.release()
+        return to_return_copy
+
+    def raise_event(self, key, value):
+        # TODO: Check if thread safe
+        self.data_lock.acquire()
+        if self.to_return is None:
+            self.to_return = {}
+        self.to_return[key] = value
         self.data_lock.release()
 
     def anim_update(self, _):

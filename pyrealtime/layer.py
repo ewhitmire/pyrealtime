@@ -43,10 +43,10 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def __init__(self, signal_in=None, name="", *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.name = name
-        self.signal_in = signal_in.get_output() if signal_in is not None else None
         self.signal = None
         self.is_first = True
         self.stop_event = None
+        self.set_signal_in(signal_in)
 
     def post_init(self, data):
         pass
@@ -59,6 +59,9 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
     def initialize(self):
         pass
+
+    def set_signal_in(self, signal_in):
+        self.signal_in = signal_in.get_output() if signal_in is not None else None
 
     def get_signal(self):
         self.signal = None
@@ -220,7 +223,7 @@ class ProducerMixin(FPSMixin, BaseInputLayer):
 
 class TransformMixin(BaseInputLayer):
     def __init__(self, port_in, *args, **kwargs):
-        self.port_in = port_in.get_output()
+        self.port_in = port_in.get_output() if port_in is not None else None
         super().__init__(*args, **kwargs)
 
     def get_input(self):

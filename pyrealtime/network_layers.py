@@ -5,18 +5,24 @@ from pyrealtime.layer import ProducerMixin, ThreadLayer, FPSMixin, TransformMixi
 
 class UDPInputLayer(ProducerMixin, ThreadLayer):
 
-    def __init__(self, host="localhost", port=9000, *args, **kwargs):
+    def __init__(self, host="localhost", port=9000, socket=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.host = host
         self.port = port
-        self.sock = None
+        self.sock = socket
         self.packet_count = 0
+
+    def make_socket(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        server_address = (self.host, self.port)
+        sock.bind(server_address)
+        return sock
 
     def initialize(self):
         super().initialize()
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        server_address = (self.host, self.port)
-        self.sock.bind(server_address)
+        if self.sock is None:
+            self.socket = self.make_socket()
+
 
     def parse(self, data):
         return data
@@ -31,19 +37,21 @@ class UDPInputLayer(ProducerMixin, ThreadLayer):
 
 class UDPOutputLayer(TransformMixin, ThreadLayer):
 
-    def __init__(self, port_in, host="localhost", port=9000, *args, **kwargs):
+    def __init__(self, port_in, host="localhost", port=9000, socket=None, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         self.host = host
         self.port = port
         self.packet_count = 0
-        self.sock = None
+        self.sock = socket
+
+    def make_socket(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        return sock
 
     def initialize(self):
         super().initialize()
         if self.sock is None:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # server_address = (self.host, self.port)
-            # self.sock.bind(server_address)  # TODO: not right
+            self.sock = self.make_socket()
 
     def encode(self, data):
         return data #  .encode('utf-8')
