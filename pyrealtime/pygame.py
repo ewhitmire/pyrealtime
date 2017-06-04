@@ -13,6 +13,7 @@ class PyGameLayer(TransformMixin, ProcessLayer):
         self.lock = None
         self.clock = None
         self.screen = None
+        self.data = None
 
     def initialize(self):
         pygame.init()

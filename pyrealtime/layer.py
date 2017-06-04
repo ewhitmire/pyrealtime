@@ -187,19 +187,21 @@ class MultiOutputMixin(BaseOutputLayer):
                 port = self.auto_ports[key]
             else:
                 raise NameError("Port %s does not exist" % key)
-            if key in data:
+            try:
                 port.handle_output(data[key])
+            except KeyError:
+                pass
         super().handle_output(data)
 
 
 class FPSMixin:
-    def __init__(self, time_window=timedelta(seconds=5), *args, **kwargs):
-        super().__init__(print_fps=False, *args, **kwargs)
+    def __init__(self, time_window=timedelta(seconds=5), print_fps=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.count = 0
         self.start_time = None
         self.reset()
         self.time_window = time_window
-        self.print_fps = False
+        self.print_fps = print_fps
         self.fps = 0
 
     def tick(self):

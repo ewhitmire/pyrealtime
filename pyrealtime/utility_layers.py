@@ -2,23 +2,43 @@ import math
 from statistics import mean
 
 from pyrealtime.layer import TransformMixin, ThreadLayer
+import numpy as np
+import sys
 
 
 class PrintLayer(TransformMixin, ThreadLayer):
+    def __init__(self, port_in, label="", *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.label = label
+
     def transform(self, data):
-        print(data)
+        sys.stdout.write(self.label + str(data) + "\n")
+        return data
+
+class MergeLayer(TransformMixin, ThreadLayer):
+    def __init__(self, ports_in, *args, **kwargs):
+        super().__init__(ports_in[0], *args, **kwargs)
+        self.other_ports = [p.get_output() for p in ports_in[1:]]
+
+    def get_input(self):
+        data = {}
+        data[0] = super().get_input()
+        for (id, port) in enumerate(self.other_ports):
+            data[id+1] = port.get()
         return data
 
 
 class AggregateLayer(TransformMixin, ThreadLayer):
-    def __init__(self, port_in, in_place=False, *args, **kwargs):
+    def __init__(self, port_in, in_place=False, flush_counter=-1, empty_on_flush=False, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         self.buffer = None
         self.in_place = in_place
-        assert self.in_place  # TODO
         self.use_np = False
-        self.is_saving = False  # TODO
-        self.should_flush = False  # TODO
+        self.is_saving = True
+        self.should_flush = flush_counter == 1  # flush immediately if always_flush
+        self.flush_counter = flush_counter
+        self.empty_on_flush = empty_on_flush
+        self.counter = 0
 
     def post_init(self, data):
         super().post_init(data)
@@ -27,13 +47,19 @@ class AggregateLayer(TransformMixin, ThreadLayer):
         if isinstance(data, np.ndarray):
             self.use_np = True
 
+        self.empty(data.shape)
+
+    def empty(self, data_shape):
+
         if self.use_np:
             import numpy as np
             if self.in_place:
-                n_channels = data.shape[-1] if len(data.shape) > 1 else 1
+                # n_channels = data.shape[-1] if len(data.shape) > 1 else 1
+                shape = (0, *data_shape[1:])
             else:
-                n_channels = data.shape[-1]
-            self.buffer = np.zeros((0, n_channels))
+                shape = (0, *data_shape)
+
+            self.buffer = np.zeros(shape)
         else:
             self.buffer = []
 
@@ -50,10 +76,11 @@ class AggregateLayer(TransformMixin, ThreadLayer):
         self.should_flush = True
 
     def transform(self, data):
+        data_shape = data.shape
         if self.is_saving:
             if self.use_np and len(data.shape) == 1:
                 import numpy as np
-                data = np.atleast_2d(data).T
+                data = np.atleast_2d(data)
 
             if self.use_np:
                 import numpy as np
@@ -61,9 +88,18 @@ class AggregateLayer(TransformMixin, ThreadLayer):
             else:
                 self.buffer += data
 
+            self.counter += 1
+
+        if self.flush_counter == -1 or self.counter >= self.flush_counter:
+            self.counter = 0
+            self.should_flush = True
+
         if self.should_flush:
             self.should_flush = False
-            return self.buffer
+            buffer = self.buffer.copy()
+            if self.empty_on_flush:
+                self.empty(data_shape)
+            return buffer
         return None
 
 
@@ -197,9 +233,10 @@ class SlidingWindow(TransformMixin, ThreadLayer):
 
 
 class MeanLayer(TransformMixin, ThreadLayer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, port_in, axis=None, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
         self.use_np = False
+        self.axis = axis
 
     def post_init(self, data):
         import numpy as np
@@ -209,6 +246,32 @@ class MeanLayer(TransformMixin, ThreadLayer):
     def transform(self, data):
         if self.use_np:
             import numpy as np
-            return np.mean(data)
+            return np.mean(data, axis=self.axis)
         else:
             return mean(data)
+
+class HoldLayer(TransformMixin, ThreadLayer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.value = None
+
+    def post_init(self, data):
+        self.value = data
+
+    def transform(self, data):
+        self.value = self.resolve(self.value, data)
+        return self.value
+
+    def resolve(self, old_value, new_value):
+        raise NotImplementedError
+
+
+
+class MaxLayer(HoldLayer):
+    def resolve(self, old_value, new_value):
+        return np.maximum(old_value, new_value)
+
+class MinLayer(HoldLayer):
+    def resolve(self, old_value, new_value):
+        return np.minimum(old_value, new_value)
+

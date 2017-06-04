@@ -5,12 +5,13 @@ from pyrealtime.layer import ProducerMixin, ThreadLayer, FPSMixin, TransformMixi
 
 class UDPInputLayer(ProducerMixin, ThreadLayer):
 
-    def __init__(self, host="localhost", port=9000, socket=None, *args, **kwargs):
+    def __init__(self, host="0.0.0.0", port=9000, socket=None, parser=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.host = host
         self.port = port
         self.sock = socket
         self.packet_count = 0
+        self.parser = parser if parser is not None else self.parse
 
     def make_socket(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -21,16 +22,15 @@ class UDPInputLayer(ProducerMixin, ThreadLayer):
     def initialize(self):
         super().initialize()
         if self.sock is None:
-            self.socket = self.make_socket()
-
+            self.sock = self.make_socket()
 
     def parse(self, data):
         return data
 
     def get_input(self):
-        packet, address = self.sock.recvfrom(10000)
+        packet, address = self.sock.recvfrom(1024)
         self.packet_count += 1
-        data = self.parse(packet)
+        data = self.parser(packet)
         self.tick()
         return data
 

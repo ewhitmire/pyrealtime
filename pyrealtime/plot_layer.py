@@ -134,6 +134,7 @@ class SimplePlotLayer(PlotLayer):
 
     def post_init(self, data):
         n_channels = 1
+        import numpy as np
         if isinstance(data, np.ndarray):
             n_channels = data.shape[-1]
             self.samples = data.shape[0]
@@ -154,6 +155,7 @@ class SimplePlotLayer(PlotLayer):
         return self.series
 
     def update_fig(self, data):
+        import numpy as np
         x = np.linspace(1, self.samples, self.samples)
         for (i, series) in enumerate(self.series):
             if isinstance(data, np.ndarray):
@@ -212,3 +214,35 @@ class TextPlotLayer(PlotLayer):
     def update_fig(self, data):
         self.h_text.set_text(data)
         return self.h_text,
+
+
+class ScatterPlotLayer(PlotLayer):
+
+    def draw_empty_plot(self, ax):
+        h = ax.scatter([], [])
+        return h,
+
+    def post_init(self, data):
+        n_channels = 1
+        import numpy as np
+        if isinstance(data, np.ndarray):
+            n_channels = data.shape[1]
+
+        self.series = []
+        for channel in range(n_channels):
+            handle = self.ax.scatter([], [], marker='.')
+            self.series.append(handle)
+
+    def init_fig(self):
+        for series in self.series:
+            series.set_offsets([])
+        return self.series
+
+    def update_fig(self, data):
+        import numpy as np
+        for (i, series) in enumerate(self.series):
+            if isinstance(data, np.ndarray):
+                series.set_offsets(data[:, i, :])
+            else:
+                series.set_offsets(data)
+        return self.series
