@@ -1,6 +1,7 @@
 import multiprocessing
 
 import time
+from warnings import warn
 
 
 class LayerManager:
@@ -9,12 +10,23 @@ class LayerManager:
     input_prompts = multiprocessing.Queue()
 
     @staticmethod
+    def reset():
+        LayerManager.layers = []
+        LayerManager.stop_event = multiprocessing.Event()
+        LayerManager.input_prompts = multiprocessing.Queue()
+
+    @staticmethod
     def add_layer(layer):
         LayerManager.layers.append(layer)
         return layer
 
     @staticmethod
     def start():
+        warn("LayerManager.start renamed to LayerManager.run")
+        LayerManager.run()
+
+    @staticmethod
+    def run():
         for layer in LayerManager.layers:
             layer.start(LayerManager.stop_event)
 
@@ -24,6 +36,8 @@ class LayerManager:
 
         for layer in LayerManager.layers:
             layer.join()
+
+        LayerManager.reset()
 
     @staticmethod
     def handle_input():

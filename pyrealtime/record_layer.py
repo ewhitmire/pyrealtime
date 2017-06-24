@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import numpy as np
-import scipy.io.wavfile
 import time
 
 from pyrealtime.layer import ThreadLayer, TransformMixin, ProducerMixin
@@ -80,6 +79,7 @@ class AudioWriter(TransformMixin, ThreadLayer):
         self.sample_rate = sample_rate
 
     def transform(self, data):
+        import scipy.io.wavfile
         scipy.io.wavfile.write(self.filename, self.sample_rate, data)
 
     @staticmethod

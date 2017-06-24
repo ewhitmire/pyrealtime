@@ -1,9 +1,12 @@
 import threading
 import multiprocessing
 from datetime import datetime, timedelta
+from enum import Enum
 
 from pyrealtime.layer_manager import LayerManager
 
+class LayerSignal(Enum):
+    STOP = 0
 
 class Port(object):
     def __init__(self):
@@ -43,9 +46,11 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def __init__(self, signal_in=None, name="", *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.name = name
+        self.counter = 0
         self.signal = None
         self.is_first = True
         self.stop_event = None
+        self.signal_in = None
         self.set_signal_in(signal_in)
 
     def post_init(self, data):
@@ -53,6 +58,9 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
     def start(self, stop_event):
         self.stop_event = stop_event
+
+    def stop(self):
+        self.stop_event.set()
 
     def transform(self, data):
         return data
@@ -76,8 +84,14 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def process_loop(self):
         while not self.stop_event.is_set():
             data = self.get_input()
+
+            if data == LayerSignal.STOP:
+                self.stop()
+                continue
+
             if data is None:
                 continue
+
             self.get_signal()
             if self.is_first:
                 self.post_init(data)
@@ -86,6 +100,14 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
             if data_transformed is None:
                 continue
             self.handle_output(data_transformed)
+            if data_transformed == LayerSignal.STOP:
+                self.stop()
+            self.counter += 1
+        self.handle_output(LayerSignal.STOP)
+        self.shutdown()
+
+    def shutdown(self):
+        pass
 
     def join(self):
         raise NotImplementedError
@@ -219,6 +241,7 @@ class FPSMixin:
 
 
 class ProducerMixin(FPSMixin, BaseInputLayer):
+
     def get_input(self):
         raise NotImplementedError
 

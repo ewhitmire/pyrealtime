@@ -1,6 +1,6 @@
 import socket
 
-from pyrealtime.layer import ProducerMixin, ThreadLayer, FPSMixin, TransformMixin
+from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin
 
 
 class UDPInputLayer(ProducerMixin, ThreadLayer):

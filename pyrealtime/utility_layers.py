@@ -15,6 +15,7 @@ class PrintLayer(TransformMixin, ThreadLayer):
         sys.stdout.write(self.label + str(data) + "\n")
         return data
 
+
 class MergeLayer(TransformMixin, ThreadLayer):
     def __init__(self, ports_in, *args, **kwargs):
         super().__init__(ports_in[0], *args, **kwargs)

@@ -10,8 +10,6 @@ from pyrealtime.decode_layer import comma_decoder
 from pyrealtime.layer import ProducerMixin, TransformMixin, ThreadLayer, FPSMixin
 
 
-
-
 class SerialLayer(ProducerMixin, ThreadLayer):
     def __init__(self, baud_rate, device_name, parser=None, *args, **kwargs):
         self.ser = None

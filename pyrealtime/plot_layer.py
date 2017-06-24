@@ -7,9 +7,8 @@ import copy
 import matplotlib.animation as animation
 from matplotlib import pyplot as plt
 
-
 class FigureManager(ProcessLayer):
-    def __init__(self, create_fig=None, fps=30, *args, **kwargs):
+    def __init__(self, create_fig=None, fps=30, keep_plot_open=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fig = None
         self.axes_dict = None
@@ -17,6 +16,8 @@ class FigureManager(ProcessLayer):
         self.create_fig = create_fig if create_fig is not None else FigureManager.default_create_fig
         self.anim = None
         self.fps = fps
+        assert(keep_plot_open==True)
+        self.keep_plot_open = keep_plot_open
 
     @staticmethod
     def default_create_fig(fig):
@@ -61,6 +62,11 @@ class FigureManager(ProcessLayer):
         if key in self.plot_layers:
             raise NameError("plot key already exists: %s" % key)
         self.plot_layers[key] = plot_layer
+
+    def shutdown(self):
+        # if not self.keep_plot_open:
+        #     plt.close(self.fig)
+        super().shutdown()
 
 
 class PlotLayer(MultiOutputMixin, TransformMixin, ThreadLayer):
