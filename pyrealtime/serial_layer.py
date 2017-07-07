@@ -48,7 +48,7 @@ class ByteSerialLayer(SerialLayer):
         self.num_bytes = num_bytes
 
     def get_input(self):
-        data = self.ser.readline(self.num_bytes)
+        data = self.ser.read(self.num_bytes)
         self.tick()
         return self.parse(data)
 

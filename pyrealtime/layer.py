@@ -85,7 +85,7 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
         while not self.stop_event.is_set():
             data = self.get_input()
 
-            if data == LayerSignal.STOP:
+            if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
                 self.stop()
                 continue
 
@@ -100,7 +100,7 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
             if data_transformed is None:
                 continue
             self.handle_output(data_transformed)
-            if data_transformed == LayerSignal.STOP:
+            if isinstance(data, LayerSignal) and data_transformed == LayerSignal.STOP:
                 self.stop()
             self.counter += 1
         self.handle_output(LayerSignal.STOP)
