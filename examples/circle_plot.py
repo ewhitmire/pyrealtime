@@ -2,7 +2,7 @@ import math
 
 from matplotlib.colors import hsv_to_rgb
 from matplotlib.widgets import Button
-from pyrealtime.input_layers import DummyInputLayer
+from pyrealtime.input_layers import InputLayer
 from pyrealtime.layer import TransformMixin, ThreadLayer
 from pyrealtime.layer_manager import LayerManager
 from pyrealtime.plot_layer import PlotLayer
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from pyrealtime.utility_layers import BufferLayer, MeanLayer
 
 
-def gen_dummy_data():
+def gen_dummy_data(counter):
     data = np.random.randint(100, size=(1,))
     return data
 
@@ -71,12 +71,12 @@ class OffsetLayer(TransformMixin, ThreadLayer):
 
 
 def main():
-    raw_data = DummyInputLayer(gen_dummy_data, rate=20, name="dummy input")
+    raw_data = InputLayer(gen_dummy_data, rate=20, name="dummy input")
     buffer = BufferLayer(raw_data, buffer_size=10)
     offset = OffsetLayer(MeanLayer(buffer), offset=25)
     plotter = CirclePlotter(offset)
     offset.set_signal_in(plotter.get_port('click'))
-    LayerManager.start()
+    LayerManager.run()
 
 
 if __name__ == "__main__":

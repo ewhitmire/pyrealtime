@@ -39,7 +39,7 @@ class AggregateLayer(TransformMixin, ThreadLayer):
         self.should_flush = flush_counter == 1  # flush immediately if always_flush
         self.flush_counter = flush_counter
         self.empty_on_flush = empty_on_flush
-        self.counter = 0
+        self.frame_counter = 0
 
     def post_init(self, data):
         super().post_init(data)
@@ -88,11 +88,10 @@ class AggregateLayer(TransformMixin, ThreadLayer):
                 self.buffer = np.concatenate((self.buffer, data), axis=0)
             else:
                 self.buffer += data
+            self.frame_counter += 1
 
-            self.counter += 1
-
-        if self.flush_counter == -1 or self.counter >= self.flush_counter:
-            self.counter = 0
+        if self.flush_counter == -1 or self.frame_counter >= self.flush_counter:
+            self.frame_counter = 0
             self.should_flush = True
 
         if self.should_flush:

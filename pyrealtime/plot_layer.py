@@ -6,6 +6,7 @@ import time
 import copy
 import matplotlib.animation as animation
 from matplotlib import pyplot as plt
+import numpy as np
 
 class FigureManager(ProcessLayer):
     def __init__(self, create_fig=None, fps=30, keep_plot_open=True, *args, **kwargs):

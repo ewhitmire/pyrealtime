@@ -1,65 +1,60 @@
-from datetime import datetime, timedelta
-import time
-from random import random
-
-import numpy as np
 import serial
 import serial.tools.list_ports
 
-from pyrealtime.decode_layer import comma_decoder
-from pyrealtime.layer import ProducerMixin, TransformMixin, ThreadLayer, FPSMixin
+from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin
 
 
-class SerialLayer(ProducerMixin, ThreadLayer):
+def find_serial_port(name):
+    ports = list(serial.tools.list_ports.comports())
+    port = None
+    for p in ports:
+        if name in p.description:
+            port = p.device
+
+    if port is None:
+        print("Error: could not find port: %s." % name)
+        print("Available ports:")
+        for p in ports:
+            print("%s: %s" % (p, p.description))
+
+    return port
+
+
+class SerialWriteLayer(TransformMixin, ThreadLayer):
+    def __init__(self, baud_rate, device_name, encoder=None, *args, **kwargs):
+        self.ser = None
+        self.baud_rate = baud_rate
+        self.device_name = device_name
+        self._encode = encoder if encoder is not None else self.encode
+        super().__init__(*args, **kwargs)
+
+    def encode(self, data):
+        return data
+
+    def initialize(self):
+        port = find_serial_port(self.device_name)
+        self.ser = serial.Serial(port, self.baud_rate, timeout=5)
+
+    def transform(self, data):
+        self.ser.write(self._encode(data))
+
+
+class SerialReadLayer(ProducerMixin, ThreadLayer):
     def __init__(self, baud_rate, device_name, parser=None, *args, **kwargs):
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
-        self.parser = parser
+        self._parse = parser if parser is not None else self.parse
         super().__init__(*args, **kwargs)
 
     def parse(self, data):
-        if self.parser is None:
-            return data
-        return self.parser(data)
+        return data
 
     def initialize(self):
-        print("Scanning serial ports for device: %s" % self.device_name)
-        time.sleep(1)
-        ports = list(serial.tools.list_ports.comports())
-        port = None
-        for p in ports:
-            print("%s: %s" % (p, p.description))
-            if self.device_name in p.description:
-                print("Found port: %s" % p.description)
-                port = p.device
-        if port is None:
-            print("Error: could not find port")
-            return
+        port = find_serial_port(self.device_name)
         self.ser = serial.Serial(port, self.baud_rate, timeout=5)
 
     def get_input(self):
-        raise NotImplementedError
-
-
-class ByteSerialLayer(SerialLayer):
-    def __init__(self, num_bytes=1, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.num_bytes = num_bytes
-
-    def get_input(self):
-        data = self.ser.read(self.num_bytes)
-        self.tick()
-        return self.parse(data)
-
-
-class AsciiSerialLayer(SerialLayer):
-    def __init__(self, parser=comma_decoder, *args, **kwargs):
-        super().__init__(parser=parser, *args, **kwargs)
-        self.skip = True
-
-    def get_input(self):
-
         line = self.ser.readline()
         try:
             line = line.decode('utf-8').strip()
@@ -67,9 +62,16 @@ class AsciiSerialLayer(SerialLayer):
             line = None
             pass
 
-        if self.skip:
-            self.skip = False
-            return None
         self.tick()
-        return self.parse(line)
+        return self._parse(line)
 
+
+class ByteSerialReadLayer(SerialReadLayer):
+    def __init__(self, num_bytes=1, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.num_bytes = num_bytes
+
+    def get_input(self):
+        data = self.ser.read(self.num_bytes)
+        self.tick()
+        return self._parse(data)

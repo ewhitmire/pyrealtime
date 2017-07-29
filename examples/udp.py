@@ -1,5 +1,5 @@
 from pyrealtime.layer_manager import LayerManager
-from pyrealtime.network_layers import UDPInputLayer
+from pyrealtime.network_layers import UDPReadLayer
 from pyrealtime.plot_layer import SimplePlotLayer
 from pyrealtime.utility_layers import BufferLayer
 
@@ -9,10 +9,10 @@ def plot_config(ax):
 
 
 def main():
-    raw_data = UDPInputLayer(name="input")
+    raw_data = UDPReadLayer(name="input")
     buffer = BufferLayer(raw_data, buffer_size=5, name="buffer")
     SimplePlotLayer(buffer, plot_config=plot_config)
-    LayerManager.start()
+    LayerManager.run()
 
 
 if __name__ == "__main__":

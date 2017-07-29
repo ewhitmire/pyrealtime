@@ -1,14 +1,33 @@
+import queue
 import threading
 import multiprocessing
 from datetime import datetime, timedelta
+from time import sleep
 from enum import Enum
 
 from pyrealtime.layer_manager import LayerManager
 
+
+class LayerTrigger(Enum):
+    SLOWEST = 0
+    FASTEST = 1
+    LAYER = 2
+    TIMER = 3
+
+
 class LayerSignal(Enum):
     STOP = 0
 
-class Port(object):
+
+class BasePort(object):
+    def get_output(self):
+        raise NotImplementedError
+
+    def handle_output(self, data):
+        raise NotImplementedError
+
+
+class Port(BasePort):
     def __init__(self):
         self.out_queues = []
 
@@ -24,7 +43,7 @@ class Port(object):
                 queue.put(data)
 
 
-class BaseOutputLayer(object):
+class BaseOutputLayer(BasePort):
     def __init__(self, *args, **kwargs):
         self.out_port = Port()
 
@@ -247,12 +266,104 @@ class ProducerMixin(FPSMixin, BaseInputLayer):
 
 
 class TransformMixin(BaseInputLayer):
-    def __init__(self, port_in, *args, **kwargs):
-        self.port_in = port_in.get_output() if port_in is not None else None
+
+    def __init__(self, port_in, trigger=LayerTrigger.SLOWEST, trigger_source=None, discard_old=True, *args, **kwargs):
+        self.ports_in = {}
+        self.keys = []
+        self.discard_old = discard_old
+        if port_in is not None:
+            self.set_input(port_in)
+        self.trigger = trigger
+        self.trigger_source = trigger_source
         super().__init__(*args, **kwargs)
 
+    def set_input(self, port_in, key='default'):
+        assert(isinstance(port_in, BasePort))
+        assert(key not in self.keys)
+        self.keys.append(key)
+        self.ports_in[key] = port_in.get_output()
+
     def get_input(self):
-        # print("%d: Blocking for input" % threading.get_ident())
-        data = self.port_in.get()  # TODO: Handle None
+        data = None
+        if self.trigger == LayerTrigger.TIMER:
+            sleep(self.trigger_source)
+            data = self.get_all_nowait(self.discard_old)
+        elif self.trigger == LayerTrigger.SLOWEST:
+            data = self.get_all(self.discard_old)
+        elif self.trigger == LayerTrigger.FASTEST:
+            data = self.get_any()
+        elif self.trigger == LayerTrigger.LAYER:
+            data = self.get_ensure_layer(self.trigger_source, self.discard_old)
+        else:
+            assert(False)
+
+        if self.keys[0] == 'default' and len(self.keys) == 1:
+            return data['default']
         return data
 
+    def get_all(self, discard_old):
+        data = {}
+        for key in self.keys:
+            data[key] = self.ports_in[key].get()
+            if discard_old:
+                try:
+                    while True:
+                        data[key] = self.ports_in[key].get_nowait()
+                except queue.Empty:
+                    pass
+        return data
+
+    def get_all_nowait(self, discard_old):
+        data = {}
+        for key in self.keys:
+            try:
+                while True:
+                    data[key] = self.ports_in[key].get_nowait()
+                    if not discard_old:
+                        break
+            except queue.Empty:
+                pass
+        return data
+
+    def get_any(self):
+        value = None
+        data = {}
+        sleep_time = 0.001
+        while True:
+            for key in self.keys:
+                try:
+                    value = self.ports_in[key].get_nowait()
+                except queue.Empty:
+                    pass
+                if value is not None:
+                    data[key] = value
+                    return data
+            sleep(sleep_time)
+            sleep_time *= 2
+
+    def get_ensure_layer(self, layer, discard_old):
+        data = {}
+        assert(layer in self.keys)
+        data[layer] = self.ports_in[layer].get()
+
+        for key in self.keys:
+            if key == layer:
+                continue
+            try:
+                while True:
+                    data[key] = self.ports_in[key].get_nowait()
+                    if not discard_old:
+                        break
+            except queue.Empty:
+                pass
+        return data
+
+
+class MergeLayer(TransformMixin, ThreadLayer):
+    pass
+
+
+class TransformLayer(TransformMixin, ThreadLayer):
+    def __init__(self, port_in, transformer, *args, **kwargs):
+        self.transform = transformer
+        super().__init__(port_in, *args, **kwargs)

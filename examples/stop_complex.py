@@ -1,11 +1,10 @@
-from pyrealtime.input_layers import DummyInputLayer
-from pyrealtime.layer import LayerSignal
+from pyrealtime.input_layers import InputLayer
 from pyrealtime.layer_manager import LayerManager
 from pyrealtime.plot_layer import SimplePlotLayer
 from pyrealtime.utility_layers import BufferLayer, PrintLayer
 
 
-class CounterLayer(DummyInputLayer):
+class CounterLayer(InputLayer):
     def __init__(self, target, *args, **kwargs):
         self.target = target
         super().__init__(*args, **kwargs)
