@@ -48,12 +48,16 @@ class AggregateLayer(TransformMixin, ThreadLayer):
         if isinstance(data, np.ndarray):
             self.use_np = True
 
+        if self.use_np and len(data.shape) == 1:
+            import numpy as np
+            data = np.atleast_2d(data)
         self.empty(data.shape)
 
     def empty(self, data_shape):
 
         if self.use_np:
             import numpy as np
+
             if self.in_place:
                 # n_channels = data.shape[-1] if len(data.shape) > 1 else 1
                 shape = (0, *data_shape[1:])
@@ -68,11 +72,9 @@ class AggregateLayer(TransformMixin, ThreadLayer):
         pass
 
     def start_saving(self):
-        print('start')
         self.is_saving = True
 
     def stop_saving(self):
-        print('stop')
         self.is_saving = False
         self.should_flush = True
 
