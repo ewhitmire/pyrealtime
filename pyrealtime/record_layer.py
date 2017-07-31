@@ -74,7 +74,7 @@ class AudioWriter(TransformMixin, ThreadLayer):
     def __init__(self, port_in, filename=None, sample_rate=44100, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         if filename is None:
-            filename = RecordLayer.make_new_filename()
+            filename = RecordLayer.make_new_filename('recording')
         self.filename = filename
         self.sample_rate = sample_rate
 

@@ -21,19 +21,26 @@ def find_serial_port(name):
 
 
 class SerialWriteLayer(TransformMixin, ThreadLayer):
-    def __init__(self, baud_rate, device_name, encoder=None, *args, **kwargs):
+    def __init__(self, port_in, baud_rate, device_name, encoder=None, *args, **kwargs):
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
         self._encode = encoder if encoder is not None else self.encode
-        super().__init__(*args, **kwargs)
+        super().__init__(port_in, *args, **kwargs)
+
+    @classmethod
+    def from_port(cls, port_in, serial, *args, **kwargs):
+        layer = cls(port_in=port_in, baud_rate=None, device_name=None, *args, **kwargs)
+        layer.ser = serial
+        return layer
 
     def encode(self, data):
         return data
 
     def initialize(self):
-        port = find_serial_port(self.device_name)
-        self.ser = serial.Serial(port, self.baud_rate, timeout=5)
+        if self.ser is None:
+            port = find_serial_port(self.device_name)
+            self.ser = serial.Serial(port, self.baud_rate, timeout=5)
 
     def transform(self, data):
         self.ser.write(self._encode(data))
@@ -47,12 +54,19 @@ class SerialReadLayer(ProducerMixin, ThreadLayer):
         self._parse = parser if parser is not None else self.parse
         super().__init__(*args, **kwargs)
 
+    @classmethod
+    def from_port(cls, serial, *args, **kwargs):
+        layer = cls(baud_rate=None, device_name=None, *args, **kwargs)
+        layer.ser = serial
+        return layer
+
     def parse(self, data):
         return data
 
     def initialize(self):
-        port = find_serial_port(self.device_name)
-        self.ser = serial.Serial(port, self.baud_rate, timeout=5)
+        if self.ser is None:
+            port = find_serial_port(self.device_name)
+            self.ser = serial.Serial(port, self.baud_rate, timeout=5)
 
     def get_input(self):
         line = self.ser.readline()

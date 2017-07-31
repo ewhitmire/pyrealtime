@@ -17,3 +17,18 @@ class InputLayer(ProducerMixin, ThreadLayer):
         data = self._generate(self.counter)
         self.tick()
         return data
+
+class OneShotInputLayer(ProducerMixin, ThreadLayer):
+    def __init__(self, value, *args, **kwargs):
+        super().__init__( *args, **kwargs)
+        self.value = value
+
+    def generate(self, counter):
+        return counter
+
+    def get_input(self):
+        if self.counter == 0:
+            return self.value
+        else:
+            time.sleep(1)
+            return
