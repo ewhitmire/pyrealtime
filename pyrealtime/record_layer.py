@@ -26,15 +26,15 @@ class RecordLayer(TransformMixin, ThreadLayer):
 
         if self.append_time:
             line = "%f,%s" % (time.time(), line)
-        return line + "\n"
+        line += "\n"
+
+        return line.encode('utf-8')
 
     def post_init(self, data):
         self.file = open(self.filename, 'wb')
 
     def transform(self, data):
         line = self.encoder(data)
-        if isinstance(line, str):
-            line = line.encode('utf-8')
         self.file.write(line)
         self.file.flush()
 

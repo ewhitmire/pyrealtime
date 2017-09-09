@@ -62,7 +62,7 @@ class BaseInputLayer(object):
 
 class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
-    def __init__(self, signal_in=None, name="", *args, **kwargs):
+    def __init__(self, signal_in=None, name="", time_window=timedelta(seconds=5), print_fps=False, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.name = name
         self.counter = 0
@@ -71,6 +71,26 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
         self.stop_event = None
         self.signal_in = None
         self.set_signal_in(signal_in)
+
+        self.count = 0
+        self.start_time = None
+        self.reset()
+        self.time_window = time_window
+        self.print_fps = print_fps
+        self.fps = 0
+
+    def tick(self):
+        t = datetime.now()
+        self.count += 1
+        if t - self.start_time >= self.time_window:
+            self.fps = self.count / (t - self.start_time).total_seconds()
+            if self.print_fps:
+                print(self.fps)
+            self.reset()
+
+    def reset(self):
+        self.count = 0
+        self.start_time = datetime.now()
 
     def post_init(self, data):
         pass
@@ -103,7 +123,6 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def process_loop(self):
         while not self.stop_event.is_set():
             data = self.get_input()
-
             if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
                 self.stop()
                 continue
@@ -119,6 +138,7 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
             if data_transformed is None:
                 continue
             self.handle_output(data_transformed)
+            self.tick()
             if isinstance(data, LayerSignal) and data_transformed == LayerSignal.STOP:
                 self.stop()
             self.counter += 1
@@ -221,45 +241,23 @@ class MultiOutputMixin(BaseOutputLayer):
         port_list[port] = Port()
 
     def handle_output(self, data):
-        for key in list(self.ports.keys()) + list(self.auto_ports.keys()):
-            if key in self.ports:
-                port = self.ports[key]
-            elif key in self.auto_ports:
-                port = self.auto_ports[key]
-            else:
-                raise NameError("Port %s does not exist" % key)
-            try:
-                port.handle_output(data[key])
-            except KeyError:
-                pass
+        if data is not None:
+            for key in list(self.ports.keys()) + list(self.auto_ports.keys()):
+                if key in self.ports:
+                    port = self.ports[key]
+                elif key in self.auto_ports:
+                    port = self.auto_ports[key]
+                else:
+                    raise NameError("Port %s does not exist" % key)
+                try:
+                    port.handle_output(data[key])
+                except KeyError:
+                    pass
         super().handle_output(data)
 
 
-class FPSMixin:
-    def __init__(self, time_window=timedelta(seconds=5), print_fps=False, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.count = 0
-        self.start_time = None
-        self.reset()
-        self.time_window = time_window
-        self.print_fps = print_fps
-        self.fps = 0
 
-    def tick(self):
-        t = datetime.now()
-        self.count += 1
-        if t - self.start_time >= self.time_window:
-            self.fps = self.count / (t - self.start_time).total_seconds()
-            if self.print_fps:
-                print(self.fps)
-            self.reset()
-
-    def reset(self):
-        self.count = 0
-        self.start_time = datetime.now()
-
-
-class ProducerMixin(FPSMixin, BaseInputLayer):
+class ProducerMixin(BaseInputLayer):
 
     def get_input(self):
         raise NotImplementedError
@@ -267,7 +265,7 @@ class ProducerMixin(FPSMixin, BaseInputLayer):
 
 class TransformMixin(BaseInputLayer):
 
-    def __init__(self, port_in, trigger=LayerTrigger.SLOWEST, trigger_source=None, discard_old=True, *args, **kwargs):
+    def __init__(self, port_in, trigger=LayerTrigger.SLOWEST, trigger_source=None, discard_old=False, *args, **kwargs):
         self.ports_in = {}
         self.keys = []
         self.discard_old = discard_old

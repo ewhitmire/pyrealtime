@@ -79,7 +79,6 @@ class AggregateLayer(TransformMixin, ThreadLayer):
         self.should_flush = True
 
     def transform(self, data):
-        data_shape = data.shape
         if self.is_saving:
             if self.use_np and len(data.shape) == 1:
                 import numpy as np
@@ -100,6 +99,11 @@ class AggregateLayer(TransformMixin, ThreadLayer):
             self.should_flush = False
             buffer = self.buffer.copy()
             if self.empty_on_flush:
+                if self.use_np and len(data.shape) == 1:
+                    import numpy as np
+                    data = np.atleast_2d(data)
+
+                data_shape = data.shape
                 self.empty(data_shape)
             return buffer
         return None
