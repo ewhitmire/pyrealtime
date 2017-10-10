@@ -76,7 +76,6 @@ class SerialReadLayer(ProducerMixin, ThreadLayer):
             line = None
             pass
 
-        self.tick()
         return self._parse(line)
 
 
@@ -87,5 +86,4 @@ class ByteSerialReadLayer(SerialReadLayer):
 
     def get_input(self):
         data = self.ser.read(self.num_bytes)
-        self.tick()
         return self._parse(data)

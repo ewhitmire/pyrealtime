@@ -1,10 +1,8 @@
+import numpy as np
 from pyrealtime.decode_layer import DecodeLayer
 from pyrealtime.input_layers import InputLayer
 from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plot_layer import SimplePlotLayer, BarPlotLayer, FigureManager
-import numpy as np
-
-from pyrealtime.utility_layers import BufferLayer
+from pyrealtime.plotting.base import FigureManager, TimePlotLayer, BarPlotLayer
 
 
 def gen_dummy_data(counter):
@@ -27,16 +25,17 @@ def create_fig(fig):
 
 
 def main():
-    raw_data = InputLayer(gen_dummy_data, rate=50, name="dummy input")
-    decode_layer = DecodeLayer(raw_data, decoder=decode)
-    buffer = BufferLayer(decode_layer.get_port('x1'))
+    raw_data = InputLayer(gen_dummy_data, rate=5000, name="dummy input")
+    decode_layer = DecodeLayer(raw_data, decoder=decode, name="decode_layer")
+    # buffer = BufferLayer(decode_layer.get_port('x1'), buffer_size=1000, name="buffer_layer")
     # buffer2 = BufferLayer(decode_layer.get_port('x2'))
 
     fig_manager = FigureManager(create_fig=create_fig)
-    SimplePlotLayer(buffer, plot_key='x1', plot_config=plot_config, fig_manager=fig_manager)
+    # SimplePlotLayer(buffer, plot_key='x1', plot_config=plot_config, fig_manager=fig_manager)
+    TimePlotLayer(decode_layer.get_port('x1'), plot_key='x1', window_size=1000, plot_config=plot_config, fig_manager=fig_manager)
     # SimplePlotLayer(buffer2, plot_key='x2', plot_config=plot_config, fig_manager=fig_manager)
     BarPlotLayer(decode_layer.get_port('x2'), plot_key='x2', plot_config=plot_config, fig_manager=fig_manager)
-    LayerManager.run()
+    LayerManager.session().run(show_monitor=True)
 
 
 if __name__ == "__main__":

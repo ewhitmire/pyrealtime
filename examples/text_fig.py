@@ -1,6 +1,6 @@
 from pyrealtime.input_layers import InputLayer
 from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plot_layer import TextPlotLayer
+from pyrealtime.plotting.base import TextPlotLayer
 
 
 def gen_dummy_data(counter):

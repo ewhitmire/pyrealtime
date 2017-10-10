@@ -1,7 +1,7 @@
 import struct
 
 from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plot_layer import SimplePlotLayer
+from pyrealtime.plotting.base import SimplePlotLayer
 from pyrealtime.serial_layer import ByteSerialReadLayer
 from pyrealtime.utility_layers import BufferLayer
 

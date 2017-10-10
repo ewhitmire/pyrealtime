@@ -1,10 +1,13 @@
 import queue
 import threading
 import multiprocessing
-from datetime import datetime, timedelta
 from time import sleep
+import time
 from enum import Enum
 
+from datetime import timedelta
+
+from pyrealtime import utils
 from pyrealtime.layer_manager import LayerManager
 
 
@@ -33,7 +36,8 @@ class Port(BasePort):
 
     def get_output(self):
         ctx = multiprocessing.get_context('spawn')
-        out_queue = ctx.Queue()
+        # out_queue = ctx.Queue()
+        out_queue = utils.Queue(ctx=ctx) # .get_context()
         self.out_queues.append(out_queue)
         return out_queue
 
@@ -62,7 +66,7 @@ class BaseInputLayer(object):
 
 class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
-    def __init__(self, signal_in=None, name="", time_window=timedelta(seconds=5), print_fps=False, *args, **kwargs):
+    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=timedelta(seconds=5), *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.name = name
         self.counter = 0
@@ -75,22 +79,23 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
         self.count = 0
         self.start_time = None
         self.reset()
-        self.time_window = time_window
+        self.print_fps_every = print_fps_every
         self.print_fps = print_fps
         self.fps = 0
+        self.last_tick_time = time.perf_counter()
 
     def tick(self):
-        t = datetime.now()
+        self.last_tick_time = time.perf_counter()
         self.count += 1
-        if t - self.start_time >= self.time_window:
-            self.fps = self.count / (t - self.start_time).total_seconds()
+        if self.last_tick_time - self.start_time >= self.print_fps_every.total_seconds():
+            self.fps = self.count / (self.last_tick_time - self.start_time)
             if self.print_fps:
                 print(self.fps)
             self.reset()
 
     def reset(self):
         self.count = 0
-        self.start_time = datetime.now()
+        self.start_time = time.perf_counter()
 
     def post_init(self, data):
         pass
@@ -158,12 +163,13 @@ class ThreadLayer(BaseLayer):
         super().__init__(*args, **kwargs)
         if parent_proc is not None:
             self.thread = parent_proc.register_child_thread(self)
+            LayerManager.session().add_layer(self, only_monitor=True)
         else:
             self.create_thread()
-            LayerManager.add_layer(self)
+            LayerManager.session().add_layer(self)
 
     def create_thread(self):
-        self.thread = threading.Thread(target=self.run_thread)
+        self.thread = threading.Thread(target=self.run_thread, name=self.name)
         self.thread.daemon = True
 
     def run_thread(self):
@@ -185,7 +191,7 @@ class ProcessLayer(BaseLayer):
         ctx = multiprocessing.get_context('spawn')
         self.process = ctx.Process(target=self.run_proc)
         self.thread_layers = []
-        LayerManager.add_layer(self)
+        LayerManager.session().add_layer(self)
 
     def run_proc(self):
         self.init_child_threads()
@@ -199,6 +205,7 @@ class ProcessLayer(BaseLayer):
             thread_layer.start(stop_event=self.stop_event)
 
         self.main_thread_post_init()
+
 
     def main_thread_post_init(self):
         pass
@@ -242,6 +249,9 @@ class MultiOutputMixin(BaseOutputLayer):
 
     def handle_output(self, data):
         if data is not None:
+            if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
+                self.stop()
+                return
             for key in list(self.ports.keys()) + list(self.auto_ports.keys()):
                 if key in self.ports:
                     port = self.ports[key]
@@ -282,6 +292,9 @@ class TransformMixin(BaseInputLayer):
         self.ports_in[key] = port_in.get_output()
 
     def get_input(self):
+        if len(self.ports_in) == 0:
+            return None
+
         data = None
         if self.trigger == LayerTrigger.TIMER:
             sleep(self.trigger_source)
@@ -293,11 +306,15 @@ class TransformMixin(BaseInputLayer):
         elif self.trigger == LayerTrigger.LAYER:
             data = self.get_ensure_layer(self.trigger_source, self.discard_old)
         else:
-            assert(False)
+            assert False
 
         if self.keys[0] == 'default' and len(self.keys) == 1:
             return data['default']
         return data
+
+    def supply_input(self, data, key='default'):
+        assert(key in self.ports_in)
+        self.ports_in[key].put(data)
 
     def get_all(self, discard_old):
         data = {}

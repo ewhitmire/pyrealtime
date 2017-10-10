@@ -1,14 +1,14 @@
 import math
 
+import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.colors import hsv_to_rgb
 from matplotlib.widgets import Button
+
 from pyrealtime.input_layers import InputLayer
 from pyrealtime.layer import TransformMixin, ThreadLayer
 from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plot_layer import PlotLayer
-import numpy as np
-
-import matplotlib.pyplot as plt
+from pyrealtime.plotting.base import PlotLayer
 from pyrealtime.utility_layers import BufferLayer, MeanLayer
 
 

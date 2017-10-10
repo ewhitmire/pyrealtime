@@ -1,6 +1,6 @@
+from pyrealtime.base.plot_layer import SimplePlotLayer
 from pyrealtime.layer_manager import LayerManager
 from pyrealtime.network_layers import UDPReadLayer
-from pyrealtime.plot_layer import SimplePlotLayer
 from pyrealtime.utility_layers import BufferLayer
 
 

@@ -1,9 +1,9 @@
-from pyrealtime.input_layers import InputLayer
+import numpy as np
+
 from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plot_layer import SimplePlotLayer
+from pyrealtime.plotting.base import SimplePlotLayer
 from pyrealtime.serial_layer import SerialReadLayer
 from pyrealtime.utility_layers import BufferLayer
-import numpy as np
 
 
 def gen_dummy_data(counter):

@@ -87,8 +87,10 @@ class AggregateLayer(TransformMixin, ThreadLayer):
             if self.use_np:
                 import numpy as np
                 self.buffer = np.concatenate((self.buffer, data), axis=0)
-            else:
+            elif isinstance(data, list):
                 self.buffer += data
+            else:
+                self.buffer.append(data)
             self.frame_counter += 1
 
         if self.flush_counter == -1 or self.frame_counter >= self.flush_counter:
@@ -105,6 +107,7 @@ class AggregateLayer(TransformMixin, ThreadLayer):
 
                 data_shape = data.shape
                 self.empty(data_shape)
+            # print(len(buffer))
             return buffer
         return None
 
@@ -119,12 +122,10 @@ class BufferLayer(TransformMixin, ThreadLayer):
         # TODO: assert overlap = 0 if in_place is false and other cases
 
     def post_init(self, data):
-        import numpy as np
         if isinstance(data, np.ndarray):
             self.use_np = True
 
         if self.use_np:
-            import numpy as np
             if self.in_place:
                 n_channels = data.shape[-1] if len(data.shape) > 1 else 1
             else:
@@ -152,12 +153,10 @@ class BufferLayer(TransformMixin, ThreadLayer):
     def in_place_transform(self, data):
         assert(len(data) < self.buffer_size)
         if self.use_np and len(data.shape) == 1:
-            import numpy as np
             data = np.atleast_2d(data).T
 
         data_size = len(data)
         if self.use_np:
-            import numpy as np
             self.buffer = np.roll(self.buffer, shift=-data_size, axis=0)
             self.buffer[-data_size:,:] = data
         else:
@@ -237,6 +236,20 @@ class SlidingWindow(TransformMixin, ThreadLayer):
             extra = n - ((num_frames -1)* frame_step + (frame_len - frame_step))
         return num_frames, extra
 
+
+class DecimateLayer(TransformMixin, ThreadLayer):
+    def __init__(self, port_in, keep_every=2, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.keep_every = keep_every
+        self.decimate_counter = 0
+
+    def transform(self, data):
+        self.decimate_counter += 1
+        if self.decimate_counter == self.keep_every:
+            self.decimate_counter = 0
+            return data
+        else:
+            return None
 
 class MeanLayer(TransformMixin, ThreadLayer):
     def __init__(self, port_in, axis=None, *args, **kwargs):

@@ -1,5 +1,7 @@
 import threading
 
+import matplotlib
+
 from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer, MultiOutputMixin
 
 import time
@@ -7,6 +9,28 @@ import copy
 import matplotlib.animation as animation
 from matplotlib import pyplot as plt
 import numpy as np
+
+
+def _blit_draw(self, artists, bg_cache):
+    # Handles blitted drawing, which renders only the artists given instead
+    # of the entire figure.
+    updated_ax = []
+    for a in artists:
+        # If we haven't cached the background for this axes object, do
+        # so now. This might not always be reliable, but it's an attempt
+        # to automate the process.
+        if a.axes not in bg_cache:
+            # bg_cache[a.axes] = a.figure.canvas.copy_from_bbox(a.axes.bbox)
+            # change here
+            bg_cache[a.axes] = a.figure.canvas.copy_from_bbox(a.axes.figure.bbox)
+        a.axes.draw_artist(a)
+        updated_ax.append(a.axes)
+
+    # After rendering all the needed artists, blit each axes individually.
+    for ax in set(updated_ax):
+        # and here
+        # ax.figure.canvas.blit(ax.bbox)
+        ax.figure.canvas.blit(ax.figure.bbox)
 
 class FigureManager(ProcessLayer):
     def __init__(self, create_fig=None, fps=30, keep_plot_open=True, *args, **kwargs):
@@ -35,6 +59,7 @@ class FigureManager(ProcessLayer):
                 raise KeyError("No axis created for plot %s" % plot_key)
             plot_layer.create_fig(self.fig, self.axes_dict[plot_key])
 
+        # matplotlib.animation.Animation._blit_draw = _blit_draw
         self.anim = animation.FuncAnimation(self.fig, self.update_func, init_func=self.init_func, frames=None,
                                       interval=1000 / self.fps, blit=True)
 
@@ -57,7 +82,12 @@ class FigureManager(ProcessLayer):
         return None
 
     def main_thread_post_init(self):
-        plt.show()
+        try:
+            plt.show()
+        except KeyboardInterrupt:
+            print("exiting figure")
+        print("done showing")
+        self.shutdown()
 
     def register_plot(self, key, plot_layer):
         if key in self.plot_layers:
@@ -67,6 +97,7 @@ class FigureManager(ProcessLayer):
     def shutdown(self):
         # if not self.keep_plot_open:
         #     plt.close(self.fig)
+        self.stop_event.set()
         super().shutdown()
 
 
@@ -136,8 +167,7 @@ class SimplePlotLayer(PlotLayer):
         self.ylim = ylim
 
     def draw_empty_plot(self, ax):
-        h, = ax.plot([], [])
-        return h,
+        return []
 
     def post_init(self, data):
         n_channels = 1
@@ -171,6 +201,95 @@ class SimplePlotLayer(PlotLayer):
                 series.set_data(x, data)
         return self.series
 
+
+class TimePlotLayer(PlotLayer):
+    def __init__(self, port_in, window_size=100, n_channels=None, ylim=None, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.window_size = window_size
+        self.n_channels = n_channels
+        self.ylim = ylim
+        self.buffer = None
+
+        self.use_np = False
+        self.num_ticks = 5
+        # self.x_time_locs = np.linspace(0, window_size, self.num_ticks)
+        # self.x_time = np.linspace(-window_size, 0, self.num_ticks)
+
+    def draw_empty_plot(self, ax):
+        return []
+
+    def post_init(self, data):
+        import numpy as np
+        if isinstance(data, np.ndarray):
+            self.use_np = True
+        if self.use_np:
+            import numpy as np
+            if self.n_channels is None:
+                self.n_channels = data.shape[-1] if len(data.shape) > 1 else 1
+            self.buffer = np.zeros((self.window_size, self.n_channels))
+        else:
+            if self.n_channels is None:
+                self.n_channels = 1
+            self.buffer = [None] * self.window_size
+
+        self.series = []
+        self.ax.set_xlim(0, self.window_size)
+        # self.ax.set_xticks(self.x_time_locs)
+        # self.ax.set_xticklabels(self.x_time)
+        self.ax.get_xaxis().set_animated(True)
+        if self.ylim is not None:
+            self.ax.set_ylim(self.ylim)
+        for channel in range(self.n_channels):
+            handle, = self.ax.plot([], [], '-', lw=1)
+            self.series.append(handle)
+
+    def init_fig(self):
+        for series in self.series:
+            series.set_data([], [])
+        return self.series
+
+    def update_fig(self, data):
+        import numpy as np
+        x = np.linspace(1, self.window_size, self.window_size)
+        for (i, series) in enumerate(self.series):
+            if isinstance(data, np.ndarray):
+                series.set_data(x, data[:, i])
+            else:
+                series.set_data(x, data)
+        return self.series + [self.ax.get_xaxis()]
+
+    def transform(self, data):
+        # assert (len(data) < self.window_size)
+        if self.use_np and len(data.shape) == 1:
+            import numpy as np
+            data = np.atleast_2d(data).T
+
+        if self.use_np:
+            import numpy as np
+            if not np.isscalar(data):
+                data_size = data.shape[1]
+            else:
+                data_size = 1
+
+            self.buffer = np.roll(self.buffer, shift=-data_size, axis=0)
+            if not np.isscalar(data):
+                self.buffer[-data_size:, :] = data.T
+            else:
+                self.buffer[-1, :] = data
+        else:
+            if isinstance(data, list):
+                data_size = len(data)
+            else:
+                data_size = 1
+            self.buffer[0:-data_size] = self.buffer[data_size:]
+            if isinstance(data, list):
+                self.buffer[-data_size:] = data
+            else:
+                self.buffer[-1] = data
+
+        # self.x_time += data_size
+        # self.ax.set_xticklabels(self.x_time)
+        super().transform(self.buffer)
 
 class BarPlotLayer(PlotLayer):
     def __init__(self, *args, **kwargs):
@@ -222,34 +341,3 @@ class TextPlotLayer(PlotLayer):
         self.h_text.set_text(data)
         return self.h_text,
 
-
-class ScatterPlotLayer(PlotLayer):
-
-    def draw_empty_plot(self, ax):
-        h = ax.scatter([], [])
-        return h,
-
-    def post_init(self, data):
-        n_channels = 1
-        import numpy as np
-        if isinstance(data, np.ndarray):
-            n_channels = data.shape[1]
-
-        self.series = []
-        for channel in range(n_channels):
-            handle = self.ax.scatter([], [], marker='.')
-            self.series.append(handle)
-
-    def init_fig(self):
-        for series in self.series:
-            series.set_offsets([])
-        return self.series
-
-    def update_fig(self, data):
-        import numpy as np
-        for (i, series) in enumerate(self.series):
-            if isinstance(data, np.ndarray):
-                series.set_offsets(data[:, i, :])
-            else:
-                series.set_offsets(data)
-        return self.series
