@@ -1,18 +1,10 @@
-from pyrealtime.base.plot_layer import SimplePlotLayer
-from pyrealtime.layer_manager import LayerManager
-from pyrealtime.network_layers import UDPReadLayer
-from pyrealtime.utility_layers import BufferLayer
-
-
-def plot_config(ax):
-    ax.set_ylim(0, 100)
+import pyrealtime as prt
 
 
 def main():
-    raw_data = UDPReadLayer(name="input")
-    buffer = BufferLayer(raw_data, buffer_size=5, name="buffer")
-    SimplePlotLayer(buffer, plot_config=plot_config)
-    LayerManager.run()
+    raw_data = prt.UDPReadLayer(name="input")
+    prt.TimePlotLayer(raw_data, buffer_size=5, ylim=(0, 100))
+    prt.LayerManager.session().run()
 
 
 if __name__ == "__main__":

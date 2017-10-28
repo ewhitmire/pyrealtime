@@ -1,12 +1,10 @@
 import numpy as np
 
-from pyrealtime.decode_layer import DecodeLayer
-from pyrealtime.input_layers import InputLayer
-from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plotting.base import FigureManager, TimePlotLayer
+import pyrealtime as prt
 
 RATE = 100
 N_STREAMS = 7
+
 
 def gen_dummy_data(counter):
     data = np.random.randn(N_STREAMS)/10 + np.sin(counter / RATE * 2 * np.pi * 3 + np.linspace(0, 2*np.pi, N_STREAMS))
@@ -31,24 +29,17 @@ def create_fig(fig):
 
 
 def main():
-    input_layer = InputLayer(gen_dummy_data, rate=RATE, name="dummy input", print_fps=True)
-    split_layer = DecodeLayer(input_layer, decoder=decoder, name="decoder")
+    input_layer = prt.InputLayer(gen_dummy_data, rate=RATE, name="dummy input", print_fps=True)
+    split_layer = prt.DecodeLayer(input_layer, decoder=decoder, name="decoder")
 
-    fm = FigureManager(create_fig=create_fig, fps=40)
-    TimePlotLayer(split_layer.get_port('x1'), plot_key='x1', window_size=1000, plot_config=plot_config, fig_manager=fm)
-    TimePlotLayer(split_layer.get_port('x2'), plot_key='x2', window_size=1000, n_channels=3, plot_config=plot_config, fig_manager=fm)
-    TimePlotLayer(split_layer.get_port('x3'), plot_key='x3', window_size=1000, plot_config=plot_config, fig_manager=fm)
-    TimePlotLayer(split_layer.get_port('x4'), plot_key='x4', window_size=1000, plot_config=plot_config, fig_manager=fm)
-    TimePlotLayer(split_layer.get_port('x5'), plot_key='x5', window_size=1000, plot_config=plot_config, fig_manager=fm)
+    fm = prt.FigureManager(create_fig=create_fig, fps=40)
+    prt.TimePlotLayer(split_layer.get_port('x1'), plot_key='x1', window_size=1000, plot_config=plot_config, fig_manager=fm)
+    prt.TimePlotLayer(split_layer.get_port('x2'), plot_key='x2', window_size=1000, n_channels=3, plot_config=plot_config, fig_manager=fm)
+    prt.TimePlotLayer(split_layer.get_port('x3'), plot_key='x3', window_size=1000, plot_config=plot_config, fig_manager=fm)
+    prt.TimePlotLayer(split_layer.get_port('x4'), plot_key='x4', window_size=1000, plot_config=plot_config, fig_manager=fm)
+    prt.TimePlotLayer(split_layer.get_port('x5'), plot_key='x5', window_size=1000, plot_config=plot_config, fig_manager=fm)
 
-
-    # fm = FigureManager(create_fig=create_fig)
-    # SimplePlotLayer(BufferLayer(split_layer.get_port('x1'), buffer_size=1000, name="buffer1"), plot_key='x1', plot_config=plot_config, fig_manager=fm)
-    # SimplePlotLayer(BufferLayer(split_layer.get_port('x2'), buffer_size=1000, name="buffer2"), plot_key='x2', plot_config=plot_config, fig_manager=fm)
-    # SimplePlotLayer(BufferLayer(split_layer.get_port('x3'), buffer_size=1000, name="buffer2"), plot_key='x3', plot_config=plot_config, fig_manager=fm)
-    # SimplePlotLayer(BufferLayer(split_layer.get_port('x4'), buffer_size=1000, name="buffer2"), plot_key='x4', plot_config=plot_config, fig_manager=fm)
-    # SimplePlotLayer(BufferLayer(split_layer.get_port('x5'), buffer_size=1000, name="buffer2"), plot_key='x5', plot_config=plot_config, fig_manager=fm)
-    LayerManager.session().run(show_monitor=False)
+    prt.LayerManager.session().run()
 
 
 if __name__ == "__main__":

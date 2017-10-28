@@ -1,9 +1,5 @@
 import struct
-
-from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plotting.base import SimplePlotLayer
-from pyrealtime.serial_layer import ByteSerialReadLayer
-from pyrealtime.utility_layers import BufferLayer
+import pyrealtime as prt
 
 
 def parser(data):
@@ -15,10 +11,10 @@ def plot_config(ax):
 
 
 def main():
-    serial_layer = ByteSerialReadLayer(device_name='KitProg', baud_rate=115200, parser=parser)
-    buffer = BufferLayer(serial_layer, buffer_size=100, name="buffer")
-    SimplePlotLayer(buffer, plot_config=plot_config)
-    LayerManager.start()
+    serial_layer = prt.ByteSerialReadLayer(device_name='KitProg', baud_rate=115200, parser=parser)
+    buffer = prt.BufferLayer(serial_layer, buffer_size=100, name="buffer")
+    prt.SimplePlotLayer(buffer, plot_config=plot_config)
+    prt.LayerManager.session().run()
 
 
 if __name__ == "__main__":

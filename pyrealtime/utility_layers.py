@@ -16,19 +16,6 @@ class PrintLayer(TransformMixin, ThreadLayer):
         return data
 
 
-class MergeLayer(TransformMixin, ThreadLayer):
-    def __init__(self, ports_in, *args, **kwargs):
-        super().__init__(ports_in[0], *args, **kwargs)
-        self.other_ports = [p.get_output() for p in ports_in[1:]]
-
-    def get_input(self):
-        data = {}
-        data[0] = super().get_input()
-        for (id, port) in enumerate(self.other_ports):
-            data[id+1] = port.get()
-        return data
-
-
 class AggregateLayer(TransformMixin, ThreadLayer):
     def __init__(self, port_in, in_place=False, flush_counter=-1, empty_on_flush=False, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)

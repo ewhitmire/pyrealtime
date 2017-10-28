@@ -32,8 +32,11 @@ def _blit_draw(self, artists, bg_cache):
         # ax.figure.canvas.blit(ax.bbox)
         ax.figure.canvas.blit(ax.figure.bbox)
 
+
 class FigureManager(ProcessLayer):
-    def __init__(self, create_fig=None, fps=30, keep_plot_open=True, *args, **kwargs):
+    def __init__(self, create_fig=None, fps=30, keep_plot_open=False, *args, **kwargs):
+        if 'name' not in kwargs:
+            kwargs['name'] = "FigureManager"
         super().__init__(*args, **kwargs)
         self.fig = None
         self.axes_dict = None
@@ -41,7 +44,6 @@ class FigureManager(ProcessLayer):
         self.create_fig = create_fig if create_fig is not None else FigureManager.default_create_fig
         self.anim = None
         self.fps = fps
-        assert(keep_plot_open==True)
         self.keep_plot_open = keep_plot_open
 
     @staticmethod
@@ -95,8 +97,12 @@ class FigureManager(ProcessLayer):
         self.plot_layers[key] = plot_layer
 
     def shutdown(self):
-        # if not self.keep_plot_open:
-        #     plt.close(self.fig)
+        if not self.keep_plot_open:
+            def close_fig():
+                plt.close(self.fig)
+            # plt.close hangs for some reason, so doing this in a daemon thread
+            t = threading.Thread(target=close_fig, daemon=True)
+            t.start()
         self.stop_event.set()
         super().shutdown()
 
@@ -291,9 +297,11 @@ class TimePlotLayer(PlotLayer):
         # self.ax.set_xticklabels(self.x_time)
         super().transform(self.buffer)
 
+
 class BarPlotLayer(PlotLayer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, port_in, ylim=None, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.ylim = ylim
         self.series = []
 
     def draw_empty_plot(self, ax):
@@ -314,6 +322,9 @@ class BarPlotLayer(PlotLayer):
         y = np.zeros((n_channels,))
         rects = self.ax.bar(x, y)
         self.series = rects
+
+        if self.ylim is not None:
+            self.ax.set_ylim(self.ylim)
 
     def update_fig(self, data):
         for (i, bar) in enumerate(self.series.get_children()):

@@ -1,16 +1,13 @@
-from pyrealtime.input_layers import InputLayer
-from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plotting.base import TextPlotLayer
-
+import pyrealtime as prt
 
 def gen_dummy_data(counter):
     return "test %s" % counter
 
 
 def main():
-    raw_data = InputLayer(gen_dummy_data, rate=5, name="dummy input")
-    TextPlotLayer(raw_data)
-    LayerManager.run()
+    raw_data = prt.InputLayer(gen_dummy_data, rate=5, name="dummy input")
+    prt.TextPlotLayer(raw_data)
+    prt.LayerManager.session().run()
 
 if __name__ == "__main__":
     main()

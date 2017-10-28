@@ -1,6 +1,5 @@
 import threading
 
-import pygame
 
 from pyrealtime.layer import ProcessLayer, TransformMixin
 
@@ -16,6 +15,10 @@ class PyGameLayer(TransformMixin, ProcessLayer):
         self.data = None
 
     def initialize(self):
+        try:
+            import pygame
+        except ImportError:
+            print("PyGame required to use this feature")
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.lock = threading.Lock()
@@ -37,6 +40,10 @@ class PyGameLayer(TransformMixin, ProcessLayer):
         return data
 
     def main_thread_post_init(self):
+        try:
+            import pygame
+        except ImportError:
+            print("PyGame required to use this feature")
         """ Main Loop """
         while not self.stop_event.is_set():
             for event in pygame.event.get():

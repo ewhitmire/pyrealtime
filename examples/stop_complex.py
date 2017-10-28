@@ -1,15 +1,12 @@
-from pyrealtime.input_layers import InputLayer
-from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plotting.base import SimplePlotLayer
-from pyrealtime.utility_layers import BufferLayer, PrintLayer
+import pyrealtime as prt
 
 
-class CounterLayer(InputLayer):
+class CounterLayer(prt.InputLayer):
     def __init__(self, target, *args, **kwargs):
         self.target = target
         super().__init__(*args, **kwargs)
 
-    def generate_frame(self, counter):
+    def generate(self, counter):
         if counter == self.target:
             # can trigger a shutdown by returning stop signal or calling stop method
             # return LayerSignal.STOP
@@ -17,14 +14,12 @@ class CounterLayer(InputLayer):
         return counter
 
 
-
 def main():
     for target in [20, 40, 60]:
         in_layer = CounterLayer(target=target)
-        buffer = BufferLayer(in_layer, buffer_size=10, name="buffer")
-        PrintLayer(buffer)
-        SimplePlotLayer(buffer, ylim=(0, 100))
-        LayerManager.run()
+        prt.PrintLayer(in_layer)
+        prt.TimePlotLayer(in_layer, buffer_size=10, ylim=(0, 100))
+        prt.LayerManager.session().run()
 
 
 if __name__ == "__main__":

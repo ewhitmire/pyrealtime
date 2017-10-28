@@ -5,11 +5,7 @@ import numpy as np
 from matplotlib.colors import hsv_to_rgb
 from matplotlib.widgets import Button
 
-from pyrealtime.input_layers import InputLayer
-from pyrealtime.layer import TransformMixin, ThreadLayer
-from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plotting.base import PlotLayer
-from pyrealtime.utility_layers import BufferLayer, MeanLayer
+import pyrealtime as prt
 
 
 def gen_dummy_data(counter):
@@ -22,7 +18,7 @@ RED_H = 0
 GREEN_H = 0.28
 
 
-class CirclePlotter(PlotLayer):
+class CirclePlotter(prt.PlotLayer):
 
     def draw_empty_plot(self, ax):
         h, = ax.plot([], [], '.', markersize=50)
@@ -52,7 +48,7 @@ class CirclePlotter(PlotLayer):
         return RED_H + GREEN_H * math.exp(-3 * error / max_error)
 
 
-class OffsetLayer(TransformMixin, ThreadLayer):
+class OffsetLayer(prt.TransformMixin, prt.ThreadLayer):
 
     def __init__(self, port_in, offset=0, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
@@ -71,12 +67,12 @@ class OffsetLayer(TransformMixin, ThreadLayer):
 
 
 def main():
-    raw_data = InputLayer(gen_dummy_data, rate=20, name="dummy input")
-    buffer = BufferLayer(raw_data, buffer_size=10)
-    offset = OffsetLayer(MeanLayer(buffer), offset=25)
+    raw_data = prt.InputLayer(gen_dummy_data, rate=20, name="dummy input")
+    buffer = prt.BufferLayer(raw_data, buffer_size=10)
+    offset = OffsetLayer(prt.MeanLayer(buffer), offset=25)
     plotter = CirclePlotter(offset)
     offset.set_signal_in(plotter.get_port('click'))
-    LayerManager.run()
+    prt.LayerManager.session().run()
 
 
 if __name__ == "__main__":

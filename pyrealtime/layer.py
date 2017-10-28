@@ -201,11 +201,10 @@ class ProcessLayer(BaseLayer):
         t.start()
 
         for thread_layer in self.thread_layers:
-            thread_layer.create_thread()
+            # thread_layer.create_thread()
             thread_layer.start(stop_event=self.stop_event)
 
         self.main_thread_post_init()
-
 
     def main_thread_post_init(self):
         pass

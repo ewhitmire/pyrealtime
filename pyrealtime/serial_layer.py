@@ -1,5 +1,9 @@
-import serial
-import serial.tools.list_ports
+try:
+    import serial
+    import serial.tools.list_ports
+except ImportError:
+    print("PySerial not found")
+
 
 from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin
 
