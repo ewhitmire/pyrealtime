@@ -7,15 +7,14 @@ It is designed to be simple enough to start visualizing data in just a few lines
 It supports realtime plotting (Matplotlib), serial communication (Pyserial), and socket connections out of the box.
 It uses a declarative data flow syntax, which means you specify *how* the pipeline should behave and then you *run* the pipeline.
 
-For example, you can build a real time plot of data coming from a serial port in just three lines.
+For example, you can build a real time plot of data coming from a serial port in just three lines.::
+    python
+    import pyrealtime as prt
 
-``python
-import pyrealtime as prt
+    serial_layer = SerialReadLayer(device_name='COM2', baud_rate=9600)
+    TimeSeriesPlot(serial_layer, window_size=100, ylim=(0, 100)
+    LayerManager.session().run()
 
-serial_layer = SerialReadLayer(device_name='COM2', baud_rate=9600)
-TimeSeriesPlot(serial_layer, window_size=100, ylim=(0, 100)
-LayerManager.session().run()
-``
 
 Features:
 * Serial port read/write
