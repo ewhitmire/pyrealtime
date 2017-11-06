@@ -42,4 +42,4 @@ PyRealtime explicitly requires `numpy` and `matplotlib`. For other optional feat
 .. |docs| image:: https://readthedocs.org/projects/pyrealtime/badge/?version=latest
     :alt: Documentation Status
     :scale: 100%
-    :target: https://docs.readthedocs.io/en/latest/?badge=latest
+    :target: https://pyrealtime.readthedocs.io/en/latest/?badge=latest
