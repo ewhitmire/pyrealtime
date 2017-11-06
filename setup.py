@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
+from pyrealtime import __version__
 
 setup(
     name="PyRealtime",
-    version="0.1.6",
+    version=__version__,
     packages=find_packages(),
     description='A package for realtime data processing, including reading from serial ports and plotting.',
     author='Eric Whitmire',

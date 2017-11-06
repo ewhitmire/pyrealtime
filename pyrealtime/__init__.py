@@ -11,3 +11,5 @@ from .serial_layer import *
 from .utility_layers import *
 from .utils import *
 from .plotting import *
+
+__version__ = '0.1.6'

@@ -1,4 +1,6 @@
-# PyRealtime
+PyRealtime
+==========
+|docs|
 
 PyRealtime is a package that simplifies building realtime pipeline systems Python. 
 It is designed to be simple enough to start visualizing data in just a few lines and scalable enough to support more complex workflows.
@@ -27,10 +29,12 @@ Features:
 * Data logging to a file
 * Realtime playback of recorded sessions
 
-## Installation
+Installation
+------------
 
-### Dependencies
-PyRealtime explicitly requires `numpy` and `Matplotlib`. For other optional features, other packages are required.
+Dependencies
+~~~~~~~~~~~~
+PyRealtime explicitly requires `numpy` and `matplotlib`. For other optional features, other packages are required.
  * `pyserial` for serial communication
  * `pygame` for 3D visualizaton
  * `pyaudio` and `scipy` for audio input
