@@ -10,22 +10,26 @@ import pyrealtime
 class LayerManager:
     class __LayerManager:
         def __init__(self):
-            multiprocessing.set_start_method('spawn')
+            # multiprocessing.set_start_method('spawn')
             self.layers = {}
-            self.stop_event = multiprocessing.get_context().Event()
-            self.input_prompts = multiprocessing.Queue()
+            self.stop_event = multiprocessing.get_context('spawn').Event()
+            self.input_prompts = multiprocessing.get_context('spawn').Queue()
             self.show_monitor = False
 
         def reset(self):
             self.layers = {}
-            self.stop_event = multiprocessing.get_context().Event()
-            self.input_prompts = multiprocessing.Queue()
+            self.stop_event = multiprocessing.get_context('spawn').Event()
+            self.input_prompts = multiprocessing.get_context('spawn').Queue()
 
         def add_layer(self, layer, only_monitor=False):
             self.layers[layer] = only_monitor
             return layer
 
         def run(self, show_monitor=False):
+            """
+
+            :param show_monitor:
+            """
             self.start(show_monitor)
 
             while not self.stop_event.is_set():

@@ -268,18 +268,21 @@ class TimePlotLayer(PlotLayer):
         # assert (len(data) < self.window_size)
         if self.use_np and len(data.shape) == 1:
             import numpy as np
-            data = np.atleast_2d(data).T
+            if len(data) == self.n_channels:
+                data = np.atleast_2d(data)
+            else:
+                data = np.atleast_2d(data).T
 
         if self.use_np:
             import numpy as np
             if not np.isscalar(data):
-                data_size = data.shape[1]
+                data_size = data.shape[0]
             else:
                 data_size = 1
 
             self.buffer = np.roll(self.buffer, shift=-data_size, axis=0)
             if not np.isscalar(data):
-                self.buffer[-data_size:, :] = data.T
+                self.buffer[-data_size:, :] = data
             else:
                 self.buffer[-1, :] = data
         else:

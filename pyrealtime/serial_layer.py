@@ -1,14 +1,12 @@
-try:
-    import serial
-    import serial.tools.list_ports
-except ImportError:
-    print("PySerial not found")
-
-
 from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin
 
 
 def find_serial_port(name):
+    try:
+        import serial
+        import serial.tools.list_ports
+    except ImportError:
+        raise ModuleNotFoundError("PySerial not found")
     ports = list(serial.tools.list_ports.comports())
     port = None
     for p in ports:
@@ -42,6 +40,13 @@ class SerialWriteLayer(TransformMixin, ThreadLayer):
         return data
 
     def initialize(self):
+
+        try:
+            import serial
+            import serial.tools.list_ports
+        except ImportError:
+            raise ModuleNotFoundError("PySerial not found")
+
         if self.ser is None:
             port = find_serial_port(self.device_name)
             self.ser = serial.Serial(port, self.baud_rate, timeout=5)
@@ -68,6 +73,12 @@ class SerialReadLayer(ProducerMixin, ThreadLayer):
         return data
 
     def initialize(self):
+
+        try:
+            import serial
+        except ImportError:
+            raise ModuleNotFoundError("PySerial not found")
+
         if self.ser is None:
             port = find_serial_port(self.device_name)
             self.ser = serial.Serial(port, self.baud_rate, timeout=5)
