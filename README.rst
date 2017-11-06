@@ -9,16 +9,13 @@ It uses a declarative data flow syntax, which means you specify *how* the pipeli
 
 For example, you can build a real time plot of data coming from a serial port in just three lines.
 
-```python
-from pyrealtime.layer_manager import LayerManager
-from pyrealtime.plot_layer import SimplePlotLayer
-from pyrealtime.serial_layer import SerialReadLayer
-from pyrealtime.utility_layers import BufferLayer
+``python
+import pyrealtime as prt
 
 serial_layer = SerialReadLayer(device_name='COM2', baud_rate=9600)
-SimplePlotLayer(BufferLayer(serial_layer, buffer_size=100), ylim=(0, 100))
-LayerManager.run()
-```
+TimeSeriesPlot(serial_layer, window_size=100, ylim=(0, 100)
+LayerManager.session().run()
+``
 
 Features:
 * Serial port read/write

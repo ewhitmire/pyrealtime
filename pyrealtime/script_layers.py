@@ -1,6 +1,17 @@
-from enum import Enum, auto
+from enum import Enum
 from pyrealtime.layer import MultiOutputMixin, ProducerMixin, ThreadLayer
 import time
+
+try:
+  from enum import auto
+except ImportError:
+    __my_enum_auto_id = 0
+
+    def auto() -> int:
+        global __my_enum_auto_id
+        i = __my_enum_auto_id
+        __my_enum_auto_id += 1
+        return i
 
 
 class ScriptState(Enum):
