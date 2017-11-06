@@ -38,3 +38,8 @@ PyRealtime explicitly requires `numpy` and `matplotlib`. For other optional feat
  * `pyserial` for serial communication
  * `pygame` for 3D visualizaton
  * `pyaudio` and `scipy` for audio input
+
+.. |docs| image:: https://readthedocs.org/projects/pyrealtime/badge/?version=latest
+    :alt: Documentation Status
+    :scale: 100%
+    :target: https://docs.readthedocs.io/en/latest/?badge=latest
