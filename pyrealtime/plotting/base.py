@@ -10,6 +10,7 @@ import matplotlib.animation as animation
 from matplotlib import pyplot as plt
 import numpy as np
 
+import numpy as np
 
 def _blit_draw(self, artists, bg_cache):
     # Handles blitted drawing, which renders only the artists given instead
@@ -228,15 +229,14 @@ class TimePlotLayer(PlotLayer):
         import numpy as np
         if isinstance(data, np.ndarray):
             self.use_np = True
-        if self.use_np:
-            import numpy as np
-            if self.n_channels is None:
+
+        if self.n_channels is None:
+            if self.use_np:
                 self.n_channels = data.shape[-1] if len(data.shape) > 1 else 1
-            self.buffer = np.zeros((self.window_size, self.n_channels))
-        else:
-            if self.n_channels is None:
+            else:
                 self.n_channels = 1
-            self.buffer = [None] * self.window_size
+
+        self.buffer = np.zeros((self.window_size, self.n_channels))
 
         self.series = []
         self.ax.set_xlim(0, self.window_size)
@@ -267,14 +267,12 @@ class TimePlotLayer(PlotLayer):
     def transform(self, data):
         # assert (len(data) < self.window_size)
         if self.use_np and len(data.shape) == 1:
-            import numpy as np
             if len(data) == self.n_channels:
                 data = np.atleast_2d(data)
             else:
                 data = np.atleast_2d(data).T
 
         if self.use_np:
-            import numpy as np
             if not np.isscalar(data):
                 data_size = data.shape[0]
             else:
@@ -287,14 +285,17 @@ class TimePlotLayer(PlotLayer):
                 self.buffer[-1, :] = data
         else:
             if isinstance(data, list):
-                data_size = len(data)
+                if len(data) == self.n_channels:
+                    data_size = 1
+                else:
+                    data_size = len(data)
             else:
                 data_size = 1
-            self.buffer[0:-data_size] = self.buffer[data_size:]
+            self.buffer = np.roll(self.buffer, shift=-data_size, axis=0)
             if isinstance(data, list):
-                self.buffer[-data_size:] = data
+                self.buffer[-data_size:, :] = data
             else:
-                self.buffer[-1] = data
+                self.buffer[-1, :] = data
 
         # self.x_time += data_size
         # self.ax.set_xticklabels(self.x_time)
