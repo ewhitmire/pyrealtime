@@ -3,7 +3,7 @@ import pyrealtime as prt
 
 def main():
     raw_data = prt.CustomInputLayer(name="custom input")
-    print_layer = prt.PrintLayer(raw_data)
+    prt.PrintLayer(raw_data)
     prt.LayerManager.session().start()
 
     while True:

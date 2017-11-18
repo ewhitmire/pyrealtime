@@ -3,28 +3,28 @@ import socketserver
 from threading import Thread
 
 import time
-from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin
+from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin, EncoderMixin, DecoderMixin
 
 
-def make_udp_layers(local_host='0.0.0.0', local_port=9000, remote_host='127.0.0.1', remote_port=9001, *args, **kwargs):
+def make_udp_layers(local_host='0.0.0.0', local_port=9000, remote_host='127.0.0.1', remote_port=9001, encoder='bytes', decoder='utf-8'):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((local_host, local_port))
 
-    return UDPReadLayer.from_socket(sock, *args, **kwargs), \
-           UDPWriteLayer.from_socket(None, sock, host=remote_host, port=remote_port, *args, **kwargs)
+    return UDPReadLayer.from_socket(sock, decoder=decoder), \
+           UDPWriteLayer.from_socket(None, sock, host=remote_host, port=remote_port, encoder=encoder)
 
 
-def make_tcp_client_layers(remote_host='127.0.0.1', remote_port=9001, *args, **kwargs):
+def make_tcp_client_layers(remote_host='127.0.0.1', remote_port=9001, encoder='bytes', decoder='utf-8'):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((remote_host, remote_port))
 
-    return TCPReadLayer.from_socket(sock, *args, **kwargs), \
-           TCPWriteLayer.from_socket(None, sock, *args, **kwargs)
+    return TCPReadLayer.from_socket(sock, decoder=decoder), \
+           TCPWriteLayer.from_socket(None, sock, encoder=encoder)
 
 
-def make_tcp_server(local_host='0.0.0.0', local_port=9000):
+def make_tcp_server(local_host='0.0.0.0', local_port=9000, encoder='bytes', decoder='utf-8'):
     server = TCPServerLayer(local_host, local_port)
-    return TCPServerReadLayer(server), TCPServerWriteLayer(None, server)
+    return TCPServerReadLayer(server, decoder=decoder), TCPServerWriteLayer(None, server, encoder=encoder)
 
 
 class TCPHandler(socketserver.BaseRequestHandler):
@@ -57,27 +57,27 @@ class TCPHandler(socketserver.BaseRequestHandler):
         if self.shutdown:
             return
         try:
-            self.request.sendall((data+'\n').encode('utf-8'))
+            self.request.sendall(data)
         except ConnectionAbortedError:
             self.shutdown = True
 
 
-class TCPServerWriteLayer(TransformMixin, ThreadLayer):
+class TCPServerWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
     def __init__(self, port_in, server, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         self.server = server
 
     def transform(self, data):
-        self.server.write(data)
+        self.server.write(self._encode(data))
 
 
-class TCPServerReadLayer(ProducerMixin, ThreadLayer):
+class TCPServerReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
     def __init__(self, server, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.server = server
 
     def get_input(self):
-        return self.server.read()
+        return self._decode(self.server.read())
 
 
 class TCPServerLayer(ThreadLayer):
@@ -123,16 +123,15 @@ class TCPServerLayer(ThreadLayer):
         self.server.shutdown()
 
 
-class UDPReadLayer(ProducerMixin, ThreadLayer):
+class UDPReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
 
-    def __init__(self, host="0.0.0.0", port=9000, bufsize=1024, parser=None, *args, **kwargs):
+    def __init__(self, host="0.0.0.0", port=9000, bufsize=1024, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.host = host
         self.port = port
         self.socket = None
         self.packet_count = 0
         self.bufsize = bufsize
-        self._parse = parser if parser is not None else self.parse
 
     @classmethod
     def from_socket(cls, sock, *args, **kwargs):
@@ -151,26 +150,21 @@ class UDPReadLayer(ProducerMixin, ThreadLayer):
         if self.socket is None:
             self.socket = self.make_socket()
 
-    def parse(self, data):
-        return data.decode('utf-8')
-
     def get_input(self):
         packet, address = self.socket.recvfrom(self.bufsize)
         self.packet_count += 1
-        data = self._parse(packet)
-        self.tick()
+        data = self._decode(packet)
         return data
 
 
-class UDPWriteLayer(TransformMixin, ThreadLayer):
+class UDPWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
 
-    def __init__(self, port_in, host="127.0.0.1", port=9000, encoder=None, *args, **kwargs):
+    def __init__(self, port_in, host="127.0.0.1", port=9000, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         self.host = host
         self.port = port
         self.socket = None
         self.packet_count = 0
-        self._encode = encoder if encoder is not None else self.encode
 
     @classmethod
     def from_socket(cls, port_in, sock, host, port, *args, **kwargs):
@@ -187,25 +181,18 @@ class UDPWriteLayer(TransformMixin, ThreadLayer):
         if self.socket is None:
             self.socket = self.make_socket()
 
-    def encode(self, data):
-        if data is not bytes:
-            data = str(data).encode('UTF-8')
-        return data
-
     def transform(self, data):
         self.socket.sendto(self._encode(data), (self.host, self.port))
         return None
 
 
+class TCPReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
 
-class TCPReadLayer(ProducerMixin, ThreadLayer):
-
-    def __init__(self, parser=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.socket = None
         self.packet_count = 0
         self.bufsize = 4096
-        self._parse = parser if parser is not None else self.parse
 
     @classmethod
     def from_socket(cls, sock, *args, **kwargs):
@@ -224,24 +211,20 @@ class TCPReadLayer(ProducerMixin, ThreadLayer):
         # if self.socket is None:
         #     self.socket = self.make_socket()
 
-    def parse(self, data):
-        return data.decode('utf-8')
-
     def get_input(self):
         packet = self.socket.recv(self.bufsize)
         self.packet_count += 1
-        data = self._parse(packet)
+        data = self._decode(packet)
         self.tick()
         return data
 
 
-class TCPWriteLayer(TransformMixin, ThreadLayer):
+class TCPWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
 
-    def __init__(self, port_in, encoder=None, *args, **kwargs):
+    def __init__(self, port_in, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         self.socket = None
         self.packet_count = 0
-        self._encode = encoder if encoder is not None else self.encode
 
     @classmethod
     def from_socket(cls, port_in, sock, *args, **kwargs):
@@ -257,11 +240,6 @@ class TCPWriteLayer(TransformMixin, ThreadLayer):
         super().initialize()
         # if self.socket is None:
         #     self.socket = self.make_socket()
-
-    def encode(self, data):
-        if data is not bytes:
-            data = str(data).encode('UTF-8')
-        return data
 
     def transform(self, data):
         self.socket.send(self._encode(data))

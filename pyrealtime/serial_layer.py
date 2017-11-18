@@ -1,4 +1,4 @@
-from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin
+from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin, EncoderMixin, DecoderMixin
 
 
 def find_serial_port(name):
@@ -22,12 +22,11 @@ def find_serial_port(name):
     return port
 
 
-class SerialWriteLayer(TransformMixin, ThreadLayer):
-    def __init__(self, port_in, baud_rate, device_name, encoder=None, *args, **kwargs):
+class SerialWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
+    def __init__(self, port_in, baud_rate, device_name,*args, **kwargs):
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
-        self._encode = encoder if encoder is not None else self.encode
         super().__init__(port_in, *args, **kwargs)
 
     @classmethod
@@ -36,11 +35,7 @@ class SerialWriteLayer(TransformMixin, ThreadLayer):
         layer.ser = serial
         return layer
 
-    def encode(self, data):
-        return data
-
     def initialize(self):
-
         try:
             import serial
             import serial.tools.list_ports
@@ -55,12 +50,11 @@ class SerialWriteLayer(TransformMixin, ThreadLayer):
         self.ser.write(self._encode(data))
 
 
-class SerialReadLayer(ProducerMixin, ThreadLayer):
-    def __init__(self, baud_rate, device_name, parser=None, *args, **kwargs):
+class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
+    def __init__(self, baud_rate, device_name, *args, **kwargs):
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
-        self._parse = parser if parser is not None else self.parse
         super().__init__(*args, **kwargs)
 
     @classmethod
@@ -69,11 +63,7 @@ class SerialReadLayer(ProducerMixin, ThreadLayer):
         layer.ser = serial
         return layer
 
-    def parse(self, data):
-        return data
-
     def initialize(self):
-
         try:
             import serial
         except ImportError:
@@ -91,7 +81,7 @@ class SerialReadLayer(ProducerMixin, ThreadLayer):
             line = None
             pass
 
-        return self._parse(line)
+        return self._decode(line)
 
 
 class ByteSerialReadLayer(SerialReadLayer):
@@ -101,4 +91,4 @@ class ByteSerialReadLayer(SerialReadLayer):
 
     def get_input(self):
         data = self.ser.read(self.num_bytes)
-        return self._parse(data)
+        return self._decode(data)

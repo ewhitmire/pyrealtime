@@ -19,7 +19,10 @@ class SubprocessLayer(prt.TransformMixin, prt.ThreadLayer):
         return data.rstrip().decode('utf-8')
 
     def initialize(self):
-        import pexpect.popen_spawn
+        try:
+            import pexpect.popen_spawn
+        except ImportError:
+            raise ModuleNotFoundError("pexpect required to use subprocess layers")
         self.proc = pexpect.popen_spawn.PopenSpawn(self.cmd)
         self.read_thread = Thread(target=self.read_loop)
         self.read_thread.start()

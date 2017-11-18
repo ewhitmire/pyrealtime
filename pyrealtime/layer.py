@@ -381,3 +381,51 @@ class TransformLayer(TransformMixin, ThreadLayer):
     def __init__(self, port_in, transformer, *args, **kwargs):
         self.transform = transformer
         super().__init__(port_in, *args, **kwargs)
+
+
+class EncoderMixin:
+    def __init__(self, *args, encoder=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if encoder is None:
+            self._encode = self.encode
+        elif callable(encoder):
+            self._encode = encoder
+        elif encoder == "bytes":
+            self._encode = self.bytes_encode
+        else:
+            raise TypeError("Invalid value for encoder argument")
+
+    def encode(self, data):
+        return data
+
+    def bytes_encode(self, data):
+        if data is not bytes:
+            data = str(data).encode('UTF-8')
+        return data
+
+
+class DecoderMixin:
+    def __init__(self, *args, decoder=None, parser=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if parser is not None:
+            import warnings
+            warnings.warn("parser is deprecated, use decoder instead", DeprecationWarning)
+            decoder = parser
+
+        if decoder is None:
+            self._decode = self.decode
+        elif callable(decoder):
+            self._decode = decoder
+        elif decoder == "utf-8":
+            self._decode = self.utf8_decode
+        else:
+            raise TypeError("Invalid value for decoder argument")
+
+    def decode(self, data):
+        return data
+
+    def utf8_decode(self, data):
+        if data is None:
+            return None
+        return data.decode('utf-8')
