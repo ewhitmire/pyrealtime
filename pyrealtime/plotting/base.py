@@ -110,7 +110,7 @@ class FigureManager(ProcessLayer):
 
 class PlotLayer(MultiOutputMixin, TransformMixin, ThreadLayer):
 
-    def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, create_fig=None, *args, **kwargs):
+    def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, create_fig=None, legend=False, *args, **kwargs):
         self.data_lock = None
         self.samples = samples
         self.buf_data = None
@@ -120,6 +120,10 @@ class PlotLayer(MultiOutputMixin, TransformMixin, ThreadLayer):
         self.ax = None
         self.series = None
         self.to_return = None
+        self.legend = legend
+        self.h_legend = None
+        self.legend_dict = dict()
+        self.trigger_legend_redraw = False
 
         super().__init__(port_in, parent_proc=self.fig_manager, *args, **kwargs)
 
@@ -148,6 +152,11 @@ class PlotLayer(MultiOutputMixin, TransformMixin, ThreadLayer):
         if self.buf_data is not None:
             lines = self.update_fig(self.buf_data)
         self.data_lock.release()
+        # if self.trigger_legend_redraw:
+        #     lines += self.h_legend.get_lines()
+        #     self.trigger_legend_redraw = False
+        #     # self.fig_manager.anim._blit = False
+
         return lines
 
     def create_fig(self, fig, ax):
@@ -157,6 +166,30 @@ class PlotLayer(MultiOutputMixin, TransformMixin, ThreadLayer):
         self.series = self.draw_empty_plot(ax)
         if self.plot_config is not None:
             self.plot_config(ax)
+
+    def post_init(self, data):
+        super().post_init(data)
+        if self.legend:
+            self.h_legend = self.ax.legend(loc='upper left')
+            for legline, origline in zip(self.h_legend.get_lines(), self.series):
+                legline.set_picker(5)  # 5 pts tolerance
+                self.legend_dict[legline] = origline
+            self.fig_manager.fig.canvas.mpl_connect('pick_event', self.on_pick)
+
+    def on_pick(self, event):
+        # on the pick event, find the orig line corresponding to the
+        # legend proxy line, and toggle the visibility
+        legline = event.artist
+        origline = self.legend_dict[legline]
+        vis = not origline.get_visible()
+        origline.set_visible(vis)
+        # Change the alpha on the line in the legend so we can see what lines
+        # have been toggled
+        if vis:
+            legline.set_alpha(1)
+        else:
+            legline.set_alpha(0.2)
+        self.trigger_legend_redraw = True
 
     def draw_empty_plot(self, ax):
         raise NotImplementedError
@@ -192,6 +225,8 @@ class SimplePlotLayer(PlotLayer):
         for channel in range(n_channels):
             handle, = self.ax.plot([], [], '-', lw=1)
             self.series.append(handle)
+
+        super().post_init(data)
 
     def init_fig(self):
         for series in self.series:
@@ -246,8 +281,10 @@ class TimePlotLayer(PlotLayer):
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
         for channel in range(self.n_channels):
-            handle, = self.ax.plot([], [], '-', lw=1)
+            handle, = self.ax.plot([], [], '-', lw=1, label=channel)
             self.series.append(handle)
+
+        super().post_init(data)
 
     def init_fig(self):
         for series in self.series:

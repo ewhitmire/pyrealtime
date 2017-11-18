@@ -34,7 +34,7 @@ def main():
 
     fm = prt.FigureManager(create_fig=create_fig, fps=40)
     prt.TimePlotLayer(split_layer.get_port('x1'), plot_key='x1', window_size=1000, plot_config=plot_config, fig_manager=fm)
-    prt.TimePlotLayer(split_layer.get_port('x2'), plot_key='x2', window_size=1000, n_channels=3, plot_config=plot_config, fig_manager=fm)
+    prt.TimePlotLayer(split_layer.get_port('x2'), plot_key='x2', window_size=1000, n_channels=3, plot_config=plot_config, fig_manager=fm, legend=True)
     prt.TimePlotLayer(split_layer.get_port('x3'), plot_key='x3', window_size=1000, plot_config=plot_config, fig_manager=fm)
     prt.TimePlotLayer(split_layer.get_port('x4'), plot_key='x4', window_size=1000, plot_config=plot_config, fig_manager=fm)
     prt.TimePlotLayer(split_layer.get_port('x5'), plot_key='x5', window_size=1000, plot_config=plot_config, fig_manager=fm)
