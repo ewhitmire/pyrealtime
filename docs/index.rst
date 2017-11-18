@@ -23,3 +23,5 @@ API
 ===
 .. automodule:: pyrealtime.decode_layer
    :members:
+.. automodule:: pyrealtime.serial_layer
+   :members:

@@ -2,6 +2,13 @@ from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin, Encoder
 
 
 def find_serial_port(name):
+    """Utility function to scan available serial ports by name. The returned object is intended to be passed to the
+    :meth:`~pyrealtime.serial_layer.SerialWriteLayer.from_port` constructor of
+    :class:`~pyrealtime.serial_layer.SerialReadLayer` or :class:`~pyrealtime.serial_layer.SerialWriteLayer`.
+
+    :param name: The name of the serial port to scan for. It will return the first available port containing name.
+    :return: A closed serial port object
+    """
     try:
         import serial
         import serial.tools.list_ports
@@ -23,7 +30,14 @@ def find_serial_port(name):
 
 
 class SerialWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
-    def __init__(self, port_in, baud_rate, device_name,*args, **kwargs):
+    """Sends data to a serial port
+    """
+    def __init__(self, port_in, baud_rate, device_name, *args, **kwargs):
+        """
+        :param port_in: Source of data to send
+        :param baud_rate: Baud rate or serial port (e.g. 9600, 115200, etc). See pyserial documentation for more details
+        :param device_name: Full or partial name of the device (e.g. 'COM2' or 'Arduino'). The port will be obtained using :func:`~pyrealtime.serial_layer.find_serial_port`.
+        """
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
@@ -31,6 +45,10 @@ class SerialWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
 
     @classmethod
     def from_port(cls, port_in, serial, *args, **kwargs):
+        """Creates a layer from an existing serial object
+
+        :param serial: Serial port object, either created using pyserial or from :func:`~pyrealtime.serial_layer.find_serial_port`.
+        """
         layer = cls(port_in=port_in, baud_rate=None, device_name=None, *args, **kwargs)
         layer.ser = serial
         return layer
@@ -51,7 +69,13 @@ class SerialWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
 
 
 class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
+    """Reads data from a serial port
+    """
     def __init__(self, baud_rate, device_name, *args, **kwargs):
+        """
+        :param baud_rate: Baud rate or serial port (e.g. 9600, 115200, etc). See pyserial documentation for more details
+        :param device_name: Full or partial name of the device (e.g. 'COM2' or 'Arduino'). The port will be obtained using :func:`~pyrealtime.serial_layer.find_serial_port`.
+        """
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
@@ -59,6 +83,10 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
 
     @classmethod
     def from_port(cls, serial, *args, **kwargs):
+        """Creates a layer from an existing serial object
+
+        :param serial: Serial port object, either created using pyserial or from :func:`~pyrealtime.serial_layer.find_serial_port`.
+        """
         layer = cls(baud_rate=None, device_name=None, *args, **kwargs)
         layer.ser = serial
         return layer

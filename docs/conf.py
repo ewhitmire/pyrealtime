@@ -169,5 +169,6 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+autoclass_content = 'both'
 
 
