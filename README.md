@@ -1,5 +1,6 @@
 # PyRealtime
 [![Documentation Status](https://readthedocs.org/projects/pyrealtime/badge/?version=latest)](http://pyrealtime.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/ewhitmire/pyrealtime.svg?branch=master)](https://travis-ci.org/ewhitmire/pyrealtime)
 
 PyRealtime is a package that simplifies building realtime pipeline systems Python. 
 It is designed to be simple enough to start visualizing data in just a few lines and scalable enough to support more complex workflows.
