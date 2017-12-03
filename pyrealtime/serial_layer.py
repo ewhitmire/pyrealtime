@@ -103,12 +103,6 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
 
     def get_input(self):
         line = self.ser.readline()
-        try:
-            line = line.decode('utf-8').strip()
-        except UnicodeDecodeError:
-            line = None
-            pass
-
         return self._decode(line)
 
 

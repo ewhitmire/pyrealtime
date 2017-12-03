@@ -22,7 +22,7 @@ class InputLayer(ProducerMixin, ThreadLayer):
 
 
 class CustomInputLayer(ProducerMixin, ThreadLayer):
-    def __init__(self, frame_generator=None, rate=30, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__( *args, **kwargs)
         self.custom_input_queue = queue.Queue()
 

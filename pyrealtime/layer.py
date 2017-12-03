@@ -429,3 +429,16 @@ class DecoderMixin:
         if data is None:
             return None
         return data.decode('utf-8')
+
+
+class OutputLayer(TransformMixin, ThreadLayer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.output = queue.Queue()
+
+    def transform(self, data):
+        self.output.put(data)
+
+    def get_output(self):
+        return self.output.get()
+

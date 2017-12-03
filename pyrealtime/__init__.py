@@ -12,5 +12,7 @@ from .utility_layers import *
 from .utils import *
 from .plotting import *
 from .subprocess import *
+from .filter_layers import *
+from .decorators import *
 
 __version__ = '0.1.7'
