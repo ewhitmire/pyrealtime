@@ -43,3 +43,30 @@ class test_serial(unittest.TestCase):
 
         self.assertEqual(output.get_output(), 'test1\n')
         self.assertEqual(output.get_output(), 'test2\n')
+
+    def test_binary_read(self):
+        """Test ByteSerialReadLayer"""
+        reader = prt.ByteSerialReadLayer.from_port(self.s)
+        output = prt.OutputLayer(reader)
+        prt.LayerManager.session().start()
+
+        self.s.write(b'123')
+        time.sleep(.1)
+        prt.LayerManager.session().stop()
+
+        self.assertEqual(output.get_output(), b'1')
+        self.assertEqual(output.get_output(), b'2')
+        self.assertEqual(output.get_output(), b'3')
+
+    def test_binary_read2(self):
+        """Test ByteSerialReadLayer"""
+        reader = prt.ByteSerialReadLayer.from_port(self.s, num_bytes=2)
+        output = prt.OutputLayer(reader)
+        prt.LayerManager.session().start()
+
+        self.s.write(b'1234')
+        time.sleep(.1)
+        prt.LayerManager.session().stop()
+
+        self.assertEqual(output.get_output(), b'12')
+        self.assertEqual(output.get_output(), b'34')
