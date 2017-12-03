@@ -245,11 +245,12 @@ class SimplePlotLayer(PlotLayer):
 
 
 class TimePlotLayer(PlotLayer):
-    def __init__(self, port_in, window_size=100, n_channels=None, ylim=None, *args, **kwargs):
+    def __init__(self, port_in, window_size=100, n_channels=None, ylim=None, lw=1, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         self.window_size = window_size
         self.n_channels = n_channels
         self.ylim = ylim
+        self.lw = lw
         self.buffer = None
 
         self.use_np = False
@@ -281,7 +282,7 @@ class TimePlotLayer(PlotLayer):
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
         for channel in range(self.n_channels):
-            handle, = self.ax.plot([], [], '-', lw=1, label=channel)
+            handle, = self.ax.plot([], [], '-', lw=self.lw, label=channel)
             self.series.append(handle)
 
         super().post_init(data)
