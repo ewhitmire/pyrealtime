@@ -1,4 +1,4 @@
 scipy
 pygame
-serial
+pyserial
 nose
