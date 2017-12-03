@@ -15,4 +15,4 @@ from .subprocess import *
 from .filter_layers import *
 from .decorators import *
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
