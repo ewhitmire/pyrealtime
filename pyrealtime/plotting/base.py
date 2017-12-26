@@ -2,7 +2,7 @@ import threading
 
 import matplotlib
 
-from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer, MultiOutputMixin
+from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer
 
 import time
 import copy
@@ -10,7 +10,6 @@ import matplotlib.animation as animation
 from matplotlib import pyplot as plt
 import numpy as np
 
-import numpy as np
 
 def _blit_draw(self, artists, bg_cache):
     # Handles blitted drawing, which renders only the artists given instead
@@ -179,7 +178,7 @@ class InProcFigureManager(ThreadLayer):
         super().shutdown()
 
 
-class PlotLayer(MultiOutputMixin, TransformMixin, ThreadLayer):
+class PlotLayer(TransformMixin, ThreadLayer):
 
     def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, create_fig=None, legend=False, *args, **kwargs):
         self.data_lock = None

@@ -1,4 +1,4 @@
-from pyrealtime.layer import TransformMixin, ThreadLayer, MultiOutputMixin
+from pyrealtime.layer import TransformMixin, ThreadLayer
 import numpy as np
 
 
@@ -18,7 +18,7 @@ def comma_decoder(data):
     return data
 
 
-class DecodeLayer(TransformMixin, MultiOutputMixin, ThreadLayer):
+class DecodeLayer(TransformMixin, ThreadLayer):
     """Decode Layer
 
     """

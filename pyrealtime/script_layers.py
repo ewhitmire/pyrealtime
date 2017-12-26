@@ -1,5 +1,5 @@
 from enum import Enum
-from pyrealtime.layer import MultiOutputMixin, ProducerMixin, ThreadLayer
+from pyrealtime.layer import ProducerMixin, ThreadLayer
 import time
 
 try:
@@ -23,7 +23,7 @@ class ScriptState(Enum):
     STATE_RESET = auto()
 
 
-class ScriptProducer(MultiOutputMixin, ProducerMixin, ThreadLayer):
+class ScriptProducer(ProducerMixin, ThreadLayer):
 
     def __init__(self, record_time=0, pre_pause_time=0, post_pause_time=0, *args, **kwargs):
         super().__init__(*args, **kwargs)

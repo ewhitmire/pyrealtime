@@ -70,7 +70,7 @@ def main():
     raw_data = prt.InputLayer(gen_dummy_data, rate=20, name="dummy input")
     buffer = prt.BufferLayer(raw_data, buffer_size=10)
     offset = OffsetLayer(prt.MeanLayer(buffer), offset=25)
-    plotter = CirclePlotter(offset)
+    plotter = CirclePlotter(offset, multi_output=True)
     offset.set_signal_in(plotter.get_port('click'))
     prt.LayerManager.session().run()
 

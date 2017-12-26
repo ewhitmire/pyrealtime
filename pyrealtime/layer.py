@@ -48,15 +48,59 @@ class Port(BasePort):
 
 
 class BaseOutputLayer(BasePort):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, multi_output=False):
+        self.multi_output = multi_output
         self.out_port = Port()
+        if multi_output:
+            self.ports = {}
+            self.auto_ports = {}
 
-    def handle_output(self, data):
-        self.out_port.handle_output(data)
+        super().__init__()
 
     def get_output(self):
         return self.out_port.get_output()
 
+    def get_port(self, port):
+        if not self.multi_output:
+            raise RuntimeError("Must set multi_output=True")
+        if port in self.ports:
+            return self.ports[port]
+        if port in self.auto_ports:
+            return self.auto_ports[port]
+        self._register_port(port, auto=True)
+        if port in self.auto_ports:
+            return self.auto_ports[port]
+        raise NameError("Port %s does not exist" % port)
+
+    def _register_port(self, port, auto=False):
+        port_list = self.ports if auto is False else self.auto_ports
+        if port in port_list:
+            raise NameError("Port %s already exists" % port)
+        port_list[port] = Port()
+
+    def handle_output(self, data):
+        if data is not None:
+            if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
+                self.stop()
+                return
+
+            if self.multi_output:
+                self.handle_multi_output(data)
+
+            self.out_port.handle_output(data)
+
+    def handle_multi_output(self, data):
+        for key in list(self.ports.keys()) + list(self.auto_ports.keys()):
+            if key in self.ports:
+                port = self.ports[key]
+            elif key in self.auto_ports:
+                port = self.auto_ports[key]
+            else:
+                raise NameError("Port %s does not exist" % key)
+            try:
+                port.handle_output(data[key])
+            except KeyError:
+                pass
 
 class BaseInputLayer(object):
 
@@ -66,8 +110,9 @@ class BaseInputLayer(object):
 
 class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
-    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=timedelta(seconds=5), *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=timedelta(seconds=5),
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.name = name
         self.counter = 0
         self.signal = None
@@ -229,48 +274,6 @@ class ProcessLayer(BaseLayer):
         self.thread_layers.append(thread_layer)
 
 
-class MultiOutputMixin(BaseOutputLayer):
-    def __init__(self, *args, **kwargs):
-        self.ports = {}
-        self.auto_ports = {}
-        super().__init__(*args, **kwargs)
-
-    def get_port(self, port):
-        if port in self.ports:
-            return self.ports[port]
-        if port in self.auto_ports:
-            return self.auto_ports[port]
-        self._register_port(port, auto=True)
-        if port in self.auto_ports:
-            return self.auto_ports[port]
-        raise NameError("Port %s does not exist" % port)
-
-    def _register_port(self, port, auto=False):
-        port_list = self.ports if auto is False else self.auto_ports
-        if port in port_list:
-            raise NameError("Port %s already exists" % port)
-        port_list[port] = Port()
-
-    def handle_output(self, data):
-        if data is not None:
-            if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
-                self.stop()
-                return
-            for key in list(self.ports.keys()) + list(self.auto_ports.keys()):
-                if key in self.ports:
-                    port = self.ports[key]
-                elif key in self.auto_ports:
-                    port = self.auto_ports[key]
-                else:
-                    raise NameError("Port %s does not exist" % key)
-                try:
-                    port.handle_output(data[key])
-                except KeyError:
-                    pass
-        super().handle_output(data)
-
-
-
 class ProducerMixin(BaseInputLayer):
 
     def get_input(self):
@@ -382,7 +385,7 @@ class MergeLayer(TransformMixin, ThreadLayer):
     pass
 
 
-class TransformLayer(TransformMixin, MultiOutputMixin, ThreadLayer):
+class TransformLayer(TransformMixin, ThreadLayer):
     def __init__(self, port_in, transformer, *args, **kwargs):
         self.transform = transformer
         super().__init__(port_in, *args, **kwargs)
