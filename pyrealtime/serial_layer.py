@@ -105,6 +105,8 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
         import serial
         try:
             line = self.ser.readline()
+            if line is None or len(line) == 0:
+                return None
         except serial.serialutil.SerialException:
             return None
         return self._decode(line)
@@ -117,4 +119,6 @@ class ByteSerialReadLayer(SerialReadLayer):
 
     def get_input(self):
         data = self.ser.read(self.num_bytes)
+        if data is None or len(data) == 0:
+            return None
         return self._decode(data)
