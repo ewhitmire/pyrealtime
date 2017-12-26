@@ -102,7 +102,11 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
             self.ser = serial.Serial(port, self.baud_rate, timeout=5)
 
     def get_input(self):
-        line = self.ser.readline()
+        import serial
+        try:
+            line = self.ser.readline()
+        except serial.serialutil.SerialException:
+            return None
         return self._decode(line)
 
 

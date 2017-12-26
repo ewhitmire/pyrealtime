@@ -152,6 +152,40 @@ class BufferLayer(TransformMixin, ThreadLayer):
         return self.buffer
 
 
+class FixedBufferLayer(TransformMixin, ThreadLayer):
+    def __init__(self, port_in, buffer_size=10, *args, **kwargs):
+        super().__init__(port_in, *args, **kwargs)
+        self.buffer_size = buffer_size
+        self.use_np = False
+        self.buffer = None
+        self.counter = 0
+        # TODO: assert overlap = 0 if in_place is false and other cases
+
+    def post_init(self, data):
+        if isinstance(data, np.ndarray):
+            self.use_np = True
+
+        if self.use_np:
+            n_channels = data.shape[-1]
+            self.buffer = np.zeros((self.buffer_size, n_channels))
+        else:
+            self.buffer = [None] * self.buffer_size
+
+    def transform(self, data):
+
+        if self.use_np:
+            self.buffer[self.counter,:] = data
+        else:
+            self.buffer[0:-data_size] = self.buffer[data_size:]
+            self.buffer[-data_size:] = data
+            # TODO
+        self.counter += 1
+        if self.counter == self.buffer_size:
+            self.counter = 0
+            return self.buffer
+        return None
+
+
 class SlidingWindow(TransformMixin, ThreadLayer):
     def __init__(self, port_in, buffer_size=10, overlap=0, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)

@@ -215,7 +215,6 @@ class TCPReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
         packet = self.socket.recv(self.bufsize)
         self.packet_count += 1
         data = self._decode(packet)
-        self.tick()
         return data
 
 

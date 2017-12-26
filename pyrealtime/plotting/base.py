@@ -74,6 +74,7 @@ class FigureManager(ProcessLayer):
         return artists
 
     def update_func(self, frame):
+        # print('update')
         artists = []
         for plot_key in self.plot_layers.keys():
             plot_layer = self.plot_layers[plot_key]
@@ -91,6 +92,76 @@ class FigureManager(ProcessLayer):
             print("exiting figure")
         print("done showing")
         self.shutdown()
+
+    def register_plot(self, key, plot_layer):
+        if key in self.plot_layers:
+            raise NameError("plot key already exists: %s" % key)
+        self.plot_layers[key] = plot_layer
+
+    def shutdown(self):
+        if not self.keep_plot_open:
+            def close_fig():
+                plt.close(self.fig)
+            # plt.close hangs for some reason, so doing this in a daemon thread
+            t = threading.Thread(target=close_fig, daemon=True)
+            t.start()
+        self.stop_event.set()
+        super().shutdown()
+
+
+class InProcFigureManager(ThreadLayer):
+    def __init__(self, create_fig=None, fps=30, keep_plot_open=False, *args, **kwargs):
+        if 'name' not in kwargs:
+            kwargs['name'] = "FigureManager"
+        super().__init__(*args, **kwargs)
+        self.fig = None
+        self.axes_dict = None
+        self.plot_layers = {}
+        self.create_fig = create_fig if create_fig is not None else FigureManager.default_create_fig
+        self.anim = None
+        self.fps = fps
+        self.keep_plot_open = keep_plot_open
+
+    @staticmethod
+    def default_create_fig(fig):
+        ax = fig.add_subplot(111)
+        return {None: ax}
+
+    def initialize(self):
+        self.fig = plt.figure()
+        self.axes_dict = self.create_fig(self.fig)
+
+        for plot_key in self.plot_layers.keys():
+            plot_layer = self.plot_layers[plot_key]
+            if plot_key not in self.axes_dict:
+                raise KeyError("No axis created for plot %s" % plot_key)
+            plot_layer.create_fig(self.fig, self.axes_dict[plot_key])
+
+        # matplotlib.animation.Animation._blit_draw = _blit_draw
+        self.anim = animation.FuncAnimation(self.fig, self.update_func, init_func=self.init_func, frames=None,
+                                      interval=1000 / self.fps, blit=True)
+        print("show")
+        plt.ion()
+        plt.show()
+        print("continue")
+
+    def init_func(self):
+        artists = []
+        for plot_key in self.plot_layers.keys():
+            plot_layer = self.plot_layers[plot_key]
+            artists += plot_layer.init_fig()
+        return artists
+
+    def update_func(self, frame):
+        artists = []
+        for plot_key in self.plot_layers.keys():
+            plot_layer = self.plot_layers[plot_key]
+            artists += plot_layer.anim_update(frame)
+        return artists
+
+    def get_input(self):
+        time.sleep(1)
+        return None
 
     def register_plot(self, key, plot_layer):
         if key in self.plot_layers:

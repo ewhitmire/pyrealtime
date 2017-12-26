@@ -26,6 +26,6 @@ def method_dec(decorator):
 def transformer(f):
     @wraps(f)
     def wrapper(input_layer, *args, **kwds):
-        transform_layer = TransformLayer(input_layer, transformer=f)
+        transform_layer = TransformLayer(input_layer, *args, transformer=f, **kwds)
         return transform_layer
     return wrapper

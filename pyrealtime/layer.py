@@ -168,6 +168,11 @@ class ThreadLayer(BaseLayer):
             self.create_thread()
             LayerManager.session().add_layer(self)
 
+    def register_child_thread(self, *args, **kwargs):
+        # threads can't have child threads. Pass along to parent proc.
+        self.create_thread()
+        LayerManager.session().add_layer(self)
+
     def create_thread(self):
         self.thread = threading.Thread(target=self.run_thread, name=self.name)
         self.thread.daemon = True
@@ -377,7 +382,7 @@ class MergeLayer(TransformMixin, ThreadLayer):
     pass
 
 
-class TransformLayer(TransformMixin, ThreadLayer):
+class TransformLayer(TransformMixin, MultiOutputMixin, ThreadLayer):
     def __init__(self, port_in, transformer, *args, **kwargs):
         self.transform = transformer
         super().__init__(port_in, *args, **kwargs)
