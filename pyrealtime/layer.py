@@ -8,6 +8,7 @@ from enum import Enum
 from datetime import timedelta
 
 from pyrealtime import utils
+from pyrealtime.buffers import Passthrough, BaseBuffer
 from pyrealtime.layer_manager import LayerManager
 
 
@@ -31,8 +32,12 @@ class BasePort(object):
 
 
 class Port(BasePort):
-    def __init__(self):
+    def __init__(self, buffer=None):
         self.out_queues = []
+        if buffer is None:
+            buffer = Passthrough()
+        assert isinstance(buffer, BaseBuffer)
+        self.bufferer = buffer
 
     def get_output(self):
         ctx = multiprocessing.get_context('spawn')
@@ -42,15 +47,19 @@ class Port(BasePort):
         return out_queue
 
     def handle_output(self, data):
-        if data is not None:
+        buffered_data = self.buffer(data)
+        if buffered_data is not None:
             for queue in self.out_queues:
-                queue.put(data)
+                queue.put(buffered_data)
+
+    def buffer(self, data):
+        return self.bufferer.buffer(data)
 
 
 class BaseOutputLayer(BasePort):
-    def __init__(self, multi_output=False):
+    def __init__(self, multi_output=False, buffer=None):
         self.multi_output = multi_output
-        self.out_port = Port()
+        self.out_port = Port(buffer=buffer)
         if multi_output:
             self.ports = {}
             self.auto_ports = {}
@@ -76,6 +85,7 @@ class BaseOutputLayer(BasePort):
         port_list = self.ports if auto is False else self.auto_ports
         if port in port_list:
             raise NameError("Port %s already exists" % port)
+        # TODO: allow buffering of child ports
         port_list[port] = Port()
 
     def handle_output(self, data):
@@ -317,6 +327,7 @@ class TransformMixin(BaseInputLayer):
 
         if self.keys[0] == 'default' and len(self.keys) == 1:
             return data['default']
+
         return data
 
     def supply_input(self, data, key='default'):

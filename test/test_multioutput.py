@@ -30,9 +30,9 @@ class test_multioutput(unittest.TestCase):
 
         data = {'a': 1, 'b': 2}
         writer.supply_input(data)
-        # time.sleep(.1)
-        writer.supply_input(prt.LayerSignal.STOP)
 
         self.assertEqual(output.get_output(), data)
         self.assertEqual(out_a.get_output(), data['a'] + 1)
         self.assertEqual(out_b.get_output(), data['b'] + 1)
+
+        writer.supply_input(prt.LayerSignal.STOP)
