@@ -19,7 +19,7 @@ def create_fig(fig):
 
 def main():
     raw_data = prt.InputLayer(gen_dummy_data, rate=5000, name="dummy input")
-    decode_layer = prt.DecodeLayer(raw_data, decoder=decode, name="decode_layer", multi_output=True)
+    decode_layer = prt.TransformLayer(raw_data, transformer=decode, name="decode_layer", multi_output=True)
 
     fig_manager = prt.FigureManager(create_fig=create_fig)
     prt.TimePlotLayer(decode_layer.get_port('x1'), plot_key='x1', window_size=1000, ylim=(0,100), fig_manager=fig_manager)

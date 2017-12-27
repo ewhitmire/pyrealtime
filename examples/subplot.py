@@ -30,7 +30,7 @@ def create_fig(fig):
 
 def main():
     input_layer = prt.InputLayer(gen_dummy_data, rate=RATE, name="dummy input", print_fps=True)
-    split_layer = prt.DecodeLayer(input_layer, decoder=decoder, name="decoder", multi_output=True)
+    split_layer = prt.TransformLayer(input_layer, transformer=decoder, name="transformer", multi_output=True)
 
     fm = prt.FigureManager(create_fig=create_fig, fps=40)
     prt.TimePlotLayer(split_layer.get_port('x1'), plot_key='x1', window_size=1000, plot_config=plot_config, fig_manager=fm)
