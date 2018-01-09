@@ -21,6 +21,7 @@ class LayerTrigger(Enum):
 
 class LayerSignal(Enum):
     STOP = 0
+    FLUSH = 1
 
 
 class BasePort(object):
@@ -167,6 +168,9 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def initialize(self):
         pass
 
+    def flush(self):
+        pass
+
     def set_signal_in(self, signal_in):
         self.signal_in = signal_in.get_output() if signal_in is not None else None
 
@@ -187,7 +191,7 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
                 self.stop()
                 continue
 
-            if data is None:
+            if data is None or (isinstance(data, LayerSignal) and data == LayerSignal.FLUSH):
                 continue
 
             self.get_signal()
@@ -233,7 +237,11 @@ class ThreadLayer(BaseLayer):
         self.thread.daemon = True
 
     def run_thread(self):
-        self.initialize()
+        try:
+            self.initialize()
+        except:
+            self.stop()
+            raise
         self.process_loop()
 
     def start(self, *args, **kwargs):
@@ -241,7 +249,9 @@ class ThreadLayer(BaseLayer):
         self.thread.start()
 
     def join(self):
-        self.thread.join()
+        if self.thread.is_alive():
+            self.flush()
+            self.thread.join()
 
 
 class ProcessLayer(BaseLayer):
@@ -333,6 +343,10 @@ class TransformMixin(BaseInputLayer):
     def supply_input(self, data, key='default'):
         assert(key in self.ports_in)
         self.ports_in[key].put(data)
+
+    def flush(self):
+        for key in self.ports_in:
+            self.supply_input(LayerSignal.FLUSH, key=key)
 
     def get_all(self, discard_old):
         data = {}
