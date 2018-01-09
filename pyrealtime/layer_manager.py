@@ -38,7 +38,6 @@ class LayerManager:
                     time.sleep(0.1)
                 except KeyboardInterrupt:
                     self.stop_event.set()
-
             self.join()
 
         def start(self, show_monitor=False):
@@ -67,7 +66,6 @@ class LayerManager:
             for (layer, only_monitor) in self.layers.items():
                 if not only_monitor:
                     layer.join()
-
             self.reset()
 
         def stop(self):

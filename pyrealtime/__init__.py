@@ -15,5 +15,6 @@ from .subprocess import *
 from .filter_layers import *
 from .decorators import *
 from .buffers import *
+from .nidaq import *
 
 __version__ = '0.1.8'

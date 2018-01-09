@@ -1,7 +1,7 @@
 import math
 from statistics import mean
 
-from pyrealtime.layer import TransformMixin, ThreadLayer
+from pyrealtime.layer import TransformMixin, ThreadLayer, TransformLayer, LayerTrigger
 import numpy as np
 import sys
 
@@ -306,12 +306,23 @@ class HoldLayer(TransformMixin, ThreadLayer):
         raise NotImplementedError
 
 
-
 class MaxLayer(HoldLayer):
     def resolve(self, old_value, new_value):
         return np.maximum(old_value, new_value)
+
 
 class MinLayer(HoldLayer):
     def resolve(self, old_value, new_value):
         return np.minimum(old_value, new_value)
 
+
+def stack(layers):
+    num_layers = len(layers)
+
+    def stack_fun(data):
+        all_layers = tuple([data[i] for i in range(num_layers)])
+        return np.vstack(all_layers).T
+    concat = TransformLayer(None, trigger=LayerTrigger.SLOWEST, discard_old=False, transformer=stack_fun)
+    for (i, layer) in enumerate(layers):
+        concat.set_input(layer, i)
+    return concat
