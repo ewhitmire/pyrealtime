@@ -30,7 +30,8 @@ class RecordLayer(TransformMixin, ThreadLayer):
 
         return line.encode('utf-8')
 
-    def post_init(self, data):
+    def initialize(self):
+        super().initialize()
         self.file = open(self.filename, 'wb')
 
     def transform(self, data):
