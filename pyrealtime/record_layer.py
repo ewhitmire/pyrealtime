@@ -33,6 +33,7 @@ class RecordLayer(TransformMixin, ThreadLayer):
     def initialize(self):
         super().initialize()
         self.file = open(self.filename, 'wb')
+        self.file.flush()
 
     def transform(self, data):
         line = self.encoder(data)
