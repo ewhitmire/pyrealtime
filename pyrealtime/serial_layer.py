@@ -21,6 +21,11 @@ def find_serial_port(name):
             port = p.device
 
     if port is None:
+        for p in ports:
+            if name in p.device:
+                port = p.device
+
+    if port is None:
         print("Error: could not find port: %s." % name)
         print("Available ports:")
         for p in ports:
@@ -101,6 +106,9 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
             port = find_serial_port(self.device_name)
             self.ser = serial.Serial(port, self.baud_rate, timeout=5)
 
+        if not self.ser.is_open:
+            raise RuntimeError("Serial port not open")
+
     def get_input(self):
         import serial
         try:
@@ -113,11 +121,20 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
 
 
 class ByteSerialReadLayer(SerialReadLayer):
-    def __init__(self, num_bytes=1, *args, **kwargs):
+    def __init__(self, *args, num_bytes=1, preamble=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_bytes = num_bytes
+        self.preamble = preamble
+        self.preamble_buffer = None if preamble is None else bytes(len(preamble))
 
     def get_input(self):
+        if self.preamble is not None:
+            while True:
+                new_data = self.ser.read(1)
+                if len(new_data) == 1:
+                    self.preamble_buffer = self.preamble_buffer[1:] + new_data
+                    if self.preamble_buffer == self.preamble:
+                        break
         data = self.ser.read(self.num_bytes)
         if data is None or len(data) == 0:
             return None

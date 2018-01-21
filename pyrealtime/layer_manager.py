@@ -102,13 +102,6 @@ class LayerManager:
         return LayerManager._instance
 
 
-
-
-
-
-
-
-
 class InputPrompt:
     def __init__(self, prompt):
         self.prompt = prompt

@@ -89,7 +89,7 @@ class FigureManager(ProcessLayer):
             plt.show()
         except KeyboardInterrupt:
             print("exiting figure")
-        print("done showing")
+        # print("done showing")
         self.shutdown()
 
     def register_plot(self, key, plot_layer):
