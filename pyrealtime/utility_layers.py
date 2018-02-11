@@ -2,6 +2,7 @@ import math
 from statistics import mean
 
 from pyrealtime.layer import TransformMixin, ThreadLayer, TransformLayer, LayerTrigger
+from pyrealtime.buffers import Passthrough
 import numpy as np
 import sys
 
@@ -326,3 +327,13 @@ def stack(layers):
     for (i, layer) in enumerate(layers):
         concat.set_input(layer, i)
     return concat
+
+
+class Buffer(TransformMixin, ThreadLayer):
+    def __init__(self, *args, in_buffer=Passthrough(), **kwargs):
+        self.bufferer = in_buffer
+        super().__init__(*args, **kwargs)
+
+
+    def transform(self, data):
+        return self.bufferer.buffer(data)

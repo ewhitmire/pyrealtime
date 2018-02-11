@@ -1,5 +1,5 @@
 from pyrealtime import ThreadLayer, TransformMixin
-
+import numpy as np
 
 class ExponentialFilter(TransformMixin, ThreadLayer):
 
@@ -19,14 +19,16 @@ class ExponentialFilter(TransformMixin, ThreadLayer):
 
 class SOSFilter(TransformMixin, ThreadLayer):
 
-    def __init__(self, port_in, sos, *args, **kwargs):
+    def __init__(self, port_in, sos, *args, axis=-1, shape=(1,), **kwargs):
         self.sos = sos
         import scipy.signal
-        self.state = scipy.signal.sosfilt_zi(sos)
+        self.axis = axis
+        zi = scipy.signal.sosfilt_zi(sos)
+        self.state = np.broadcast_to(np.expand_dims(zi,-1), tuple(list(zi.shape) + list(shape)))
         super().__init__(port_in, *args, **kwargs)
 
     def transform(self, data):
         import scipy.signal
-        y, new_state = scipy.signal.sosfilt(self.sos, data, zi=self.state)
+        y, new_state = scipy.signal.sosfilt(self.sos, data, zi=self.state, axis=self.axis)
         self.state = new_state
         return y

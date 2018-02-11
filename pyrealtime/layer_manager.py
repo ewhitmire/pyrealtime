@@ -13,12 +13,14 @@ class LayerManager:
             # multiprocessing.set_start_method('spawn')
             self.layers = {}
             self.stop_event = multiprocessing.get_context('spawn').Event()
+            self.pause_event = multiprocessing.get_context('spawn').Event()
             self.input_prompts = multiprocessing.get_context('spawn').Queue()
             self.show_monitor = False
 
         def reset(self):
             self.layers = {}
             self.stop_event = multiprocessing.get_context('spawn').Event()
+            self.pause_event = multiprocessing.get_context('spawn').Event()
             self.input_prompts = multiprocessing.get_context('spawn').Queue()
 
         def add_layer(self, layer, only_monitor=False):
@@ -44,7 +46,7 @@ class LayerManager:
             self.show_monitor = show_monitor  # cache this so the forked process knows what to do
             for (layer, only_monitor) in self.layers.items():
                 if not only_monitor:
-                    layer.start(self.stop_event)
+                    layer.start(self.stop_event, self.pause_event)
 
             if show_monitor:
                 self.start_monitor()
@@ -70,6 +72,9 @@ class LayerManager:
 
         def stop(self):
             self.stop_event.set()
+
+        def pause(self):
+            self.pause_event.set()
 
         def handle_input(self):
             if not self.input_prompts.empty():

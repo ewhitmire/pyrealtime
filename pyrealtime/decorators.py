@@ -1,4 +1,4 @@
-from functools import wraps, update_wrapper
+from functools import wraps, update_wrapper, partial
 
 from pyrealtime import TransformLayer
 
@@ -23,9 +23,32 @@ def method_dec(decorator):
     return _dec
 
 
-def transformer(f):
+def transformer(f=None, **kwargs):
+    # If called without method, we've been called with optional arguments.
+    # We return a decorator with the optional arguments filled in.
+    # Next time round we'll be decorating method.
+    if f is None:
+        return partial(transformer, **kwargs)
     @wraps(f)
     def wrapper(input_layer, *args, **kwds):
-        transform_layer = TransformLayer(input_layer, *args, transformer=f, **kwds)
+        transform_layer = TransformLayer(input_layer, *args, transformer=f, **kwds, **kwargs)
         return transform_layer
     return wrapper
+
+# def transformer(f, **kwargs):
+#     # @wraps(f)
+#     # def wrapper(input_layer, *args, **kwds):
+#     #     transform_layer = TransformLayer(input_layer, *args, transformer=f, **kwds, **kwargs)
+#     #     return transform_layer
+#
+#     def wrap(f):
+#         print("Inside wrap()")
+#
+#         def wrapped_f(input_layer, *args, **kwds):
+#             transform_layer = TransformLayer(input_layer, *args, transformer=f, **kwds, **kwargs)
+#             return transform_layer
+#
+#         return wrapped_f
+#
+#     return wrap
+#     # return wrapper

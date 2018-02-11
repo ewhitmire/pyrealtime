@@ -49,9 +49,10 @@ class Port(BasePort):
 
     def handle_output(self, data):
         buffered_data = self.buffer(data)
-        if buffered_data is not None:
-            for queue in self.out_queues:
-                queue.put(buffered_data)
+        for slice in buffered_data:
+            if slice is not None:
+                for queue in self.out_queues:
+                    queue.put(slice)
 
     def buffer(self, data):
         return self.bufferer.buffer(data)
@@ -139,6 +140,7 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
         self.print_fps = print_fps
         self.fps = 0
         self.last_tick_time = time.perf_counter()
+        self.pause_event = None
 
     def tick(self):
         self.last_tick_time = time.perf_counter()
@@ -156,8 +158,9 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def post_init(self, data):
         pass
 
-    def start(self, stop_event):
+    def start(self, stop_event, pause_event):
         self.stop_event = stop_event
+        self.pause_event = pause_event
 
     def stop(self):
         self.stop_event.set()
@@ -186,6 +189,9 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
     def process_loop(self):
         while not self.stop_event.is_set():
+            if self.pause_event.is_set():
+                sleep(1)
+                continue
             data = self.get_input()
             if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
                 self.stop()
@@ -272,7 +278,7 @@ class ProcessLayer(BaseLayer):
 
         for thread_layer in self.thread_layers:
             # thread_layer.create_thread()
-            thread_layer.start(stop_event=self.stop_event)
+            thread_layer.start(stop_event=self.stop_event, pause_event=self.pause_event)
 
         self.main_thread_post_init()
 
@@ -296,8 +302,16 @@ class ProcessLayer(BaseLayer):
 
 class ProducerMixin(BaseInputLayer):
 
+    def __init__(self, *args, **kwargs):
+        ctx = multiprocessing.get_context('spawn')
+        self.input_queue = ctx.Queue()
+        super().__init__(*args, **kwargs)
+
     def get_input(self):
-        raise NotImplementedError
+        return self.input_queue.get()
+
+    def supply_input(self, data):
+        self.input_queue.put(data)
 
 
 class TransformMixin(BaseInputLayer):

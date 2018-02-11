@@ -9,7 +9,7 @@ import copy
 import matplotlib.animation as animation
 from matplotlib import pyplot as plt
 import numpy as np
-
+from matplotlib.widgets import Button
 
 def _blit_draw(self, artists, bg_cache):
     # Handles blitted drawing, which renders only the artists given instead
@@ -322,13 +322,21 @@ class TimePlotLayer(PlotLayer):
         self.ylim = ylim
         self.lw = lw
         self.buffer = None
-
+        self.pause_button = None
+        self.paused = False
         self.use_np = False
         self.num_ticks = 5
         # self.x_time_locs = np.linspace(0, window_size, self.num_ticks)
         # self.x_time = np.linspace(-window_size, 0, self.num_ticks)
 
+    def pause(self, _):
+        self.paused = not self.paused
+
     def draw_empty_plot(self, ax):
+
+        ax_pause = plt.axes([0.81, 0.005, 0.1, 0.075])
+        self.pause_button = Button(ax_pause, 'Pause')
+        self.pause_button.on_clicked(self.pause)
         return []
 
     def post_init(self, data):
@@ -354,7 +362,6 @@ class TimePlotLayer(PlotLayer):
         for channel in range(self.n_channels):
             handle, = self.ax.plot([], [], '-', lw=self.lw, label=channel)
             self.series.append(handle)
-
         super().post_init(data)
 
     def init_fig(self):
@@ -373,6 +380,9 @@ class TimePlotLayer(PlotLayer):
         return self.series + [self.ax.get_xaxis()]
 
     def transform(self, data):
+
+        if self.paused:
+            return None
         # assert (len(data) < self.window_size)
         if self.use_np and len(data.shape) == 1:
             if len(data) == self.n_channels:
