@@ -337,3 +337,15 @@ class Buffer(TransformMixin, ThreadLayer):
 
     def transform(self, data):
         return self.bufferer.buffer(data)
+
+class SplitLayer(TransformMixin, ThreadLayer):
+    def __init__(self, port_in, *args, axis=None, **kwargs):
+        self.axis = axis
+        assert(axis is None)
+        super().__init__(port_in, *args, **kwargs)
+
+    def transform(self, data):
+        for i in range(len(data)):
+            if not i == 0:
+                self.tick()
+            self.handle_output(data[i])
