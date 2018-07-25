@@ -35,7 +35,7 @@ class FixedBuffer(BaseBuffer):
         to_return = []
         while new_data_len > 0:
             if self.axis is None:
-                self._buffer[self.counter:self.counter+new_data_len] = data
+                self._buffer[self.counter:self.counter+new_data_len] = data if new_data_len > 1 else [data]
                 data = []
             else:
                 # print(new_data_len, self.axis)
