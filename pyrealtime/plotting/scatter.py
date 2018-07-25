@@ -34,7 +34,7 @@ class ScatterPlotLayer(PlotLayer):
     def update_fig(self, data):
         import numpy as np
         for (i, series) in enumerate(self.series):
-            if isinstance(data, np.ndarray):
+            if isinstance(data, np.ndarray) and len(data.shape) > 2:
                 series.set_offsets(data[:, i, :])
             else:
                 series.set_offsets(data)
@@ -47,6 +47,7 @@ class AggregateScatterPlotLayer(ScatterPlotLayer):
         self.buffer_size = buffer_size
         self.n_channels = n_channels
         self.buffer = None
+        self.use_np = False
 
     def draw_empty_plot(self, ax):
         return []
@@ -65,7 +66,7 @@ class AggregateScatterPlotLayer(ScatterPlotLayer):
         else:
             if self.n_channels is None:
                 self.n_channels = 1
-            self.buffer = [None] * self.buffer_size
+            self.buffer = [(None, None)] * self.buffer_size
 
         if self.xlim is not None:
             self.ax.set_xlim(self.xlim)
