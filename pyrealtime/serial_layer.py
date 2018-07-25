@@ -1,4 +1,5 @@
 from pyrealtime.layer import ProducerMixin, ThreadLayer, TransformMixin, EncoderMixin, DecoderMixin
+import time
 
 
 def find_serial_port(name):
@@ -37,7 +38,7 @@ def find_serial_port(name):
 class SerialWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
     """Sends data to a serial port
     """
-    def __init__(self, port_in, baud_rate, device_name, *args, **kwargs):
+    def __init__(self, port_in, baud_rate, device_name, *args, auto_reconnect=True, **kwargs):
         """
         :param port_in: Source of data to send
         :param baud_rate: Baud rate or serial port (e.g. 9600, 115200, etc). See pyserial documentation for more details
@@ -46,6 +47,7 @@ class SerialWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
+        self.auto_reconnect = auto_reconnect
         super().__init__(port_in, *args, **kwargs)
 
     @classmethod
@@ -76,7 +78,7 @@ class SerialWriteLayer(TransformMixin, EncoderMixin, ThreadLayer):
 class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
     """Reads data from a serial port
     """
-    def __init__(self, baud_rate, device_name, *args, **kwargs):
+    def __init__(self, baud_rate, device_name, *args, auto_reconnect=True, **kwargs):
         """
         :param baud_rate: Baud rate or serial port (e.g. 9600, 115200, etc). See pyserial documentation for more details
         :param device_name: Full or partial name of the device (e.g. 'COM2' or 'Arduino'). The port will be obtained using :func:`~pyrealtime.serial_layer.find_serial_port`.
@@ -84,6 +86,8 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
         self.ser = None
         self.baud_rate = baud_rate
         self.device_name = device_name
+        self.auto_reconnect = auto_reconnect
+        self.disconnected = False
         super().__init__(*args, **kwargs)
 
     @classmethod
@@ -111,13 +115,30 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
 
     def get_input(self):
         import serial
+        self.reconnect()
         try:
             line = self.ser.readline()
             if line is None or len(line) == 0:
                 return None
         except serial.serialutil.SerialException:
+            self.on_disconnect()
             return None
         return self._decode(line)
+
+    def on_disconnect(self):
+        self.disconnected = True
+        self.ser.close()
+        print("Serial port disconnected...")
+
+    def reconnect(self):
+        if self.disconnected:
+            import serial
+            print("Attempting to reopen port...")
+            try:
+                self.ser.open()
+                self.disconnected = False
+            except serial.SerialException:
+                time.sleep(1)
 
 
 class ByteSerialReadLayer(SerialReadLayer):
@@ -128,14 +149,26 @@ class ByteSerialReadLayer(SerialReadLayer):
         self.preamble_buffer = None if preamble is None else bytes(len(preamble))
 
     def get_input(self):
+        import serial
+        self.reconnect()
+        if self.disconnected:
+            return None
         if self.preamble is not None:
             while True:
-                new_data = self.ser.read(1)
+                try:
+                    new_data = self.ser.read(1)
+                except serial.SerialException:
+                    self.on_disconnect()
+                    return None
                 if len(new_data) == 1:
                     self.preamble_buffer = self.preamble_buffer[1:] + new_data
                     if self.preamble_buffer == self.preamble:
                         break
-        data = self.ser.read(self.num_bytes)
+        try:
+            data = self.ser.read(self.num_bytes)
+        except serial.SerialException:
+            self.on_disconnect()
+            return None
         if data is None or len(data) == 0:
             return None
         return self._decode(data)
