@@ -3,12 +3,23 @@ import numpy as np
 
 class ExponentialFilter(TransformMixin, ThreadLayer):
 
-    def __init__(self, *args, alpha, **kwargs):
+    def __init__(self, *args, alpha, batch=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.alpha = alpha
+        self.batch = batch
         self.prev = None
 
     def transform(self, data):
+        if self.batch:
+            new_data = np.zeros(data.shape)
+            if self.prev is None:
+                self.prev = data[0, :]
+            for i in range(data.shape[0]):
+                new = data[i, :] * self.alpha + self.prev * (1 - self.alpha)
+                self.prev = new
+                new_data[i, :] = new
+            return new_data
+
         if self.prev is None:
             self.prev = data
         new = data * self.alpha + self.prev * (1-self.alpha)
