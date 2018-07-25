@@ -4,6 +4,8 @@ import multiprocessing
 
 import os
 
+import time
+
 
 class SharedCounter:
     def __init__(self, ctx):
@@ -57,3 +59,20 @@ class Queue(multiprocessing.queues.Queue):
     def __setstate__(self, state):
         self.size = state[0]
         super().__setstate__(state[1:])
+
+
+class FPSTimer:
+    def __init__(self, print_every_sec=5):
+        self.ticks = 0
+        self.print_every_sec = print_every_sec
+        self.last_print = time.time()
+
+    def tick(self):
+        this_time = time.time()
+        elapsed_time = this_time - self.last_print
+        self.ticks += 1
+        if elapsed_time > self.print_every_sec:
+            print(f"FPS: {self.ticks / elapsed_time}")
+            self.last_print = this_time
+            self.ticks = 0
+
