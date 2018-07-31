@@ -72,7 +72,7 @@ class FPSTimer:
         elapsed_time = this_time - self.last_print
         self.ticks += 1
         if elapsed_time > self.print_every_sec:
-            print(f"FPS: {self.ticks / elapsed_time}")
+            print("FPS: {}".format(self.ticks / elapsed_time))
             self.last_print = this_time
             self.ticks = 0
 
