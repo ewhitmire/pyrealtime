@@ -12,6 +12,7 @@ class LayerManager:
         def __init__(self):
             # multiprocessing.set_start_method('spawn')
             self.layers = {}
+            self.sync_layers = []
             self.stop_event = multiprocessing.get_context('spawn').Event()
             self.pause_event = multiprocessing.get_context('spawn').Event()
             self.input_prompts = multiprocessing.get_context('spawn').Queue()
@@ -23,8 +24,10 @@ class LayerManager:
             self.pause_event = multiprocessing.get_context('spawn').Event()
             self.input_prompts = multiprocessing.get_context('spawn').Queue()
 
-        def add_layer(self, layer, only_monitor=False):
+        def add_layer(self, layer, only_monitor=False, synchronous=False):
             self.layers[layer] = only_monitor
+            if synchronous:
+                self.sync_layers.append(layer)
             return layer
 
         def run(self, show_monitor=False, main_thread=None):
@@ -40,6 +43,10 @@ class LayerManager:
                 except KeyboardInterrupt:
                     self.stop_event.set()
                 self.join()
+            elif len(self.sync_layers ) > 0:
+                while not self.stop_event.is_set():
+                    for layer in self.sync_layers:
+                        layer.process(block_for_input=False)
             else:
                 while not self.stop_event.is_set():
                     self.handle_input()

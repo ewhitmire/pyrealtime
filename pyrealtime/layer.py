@@ -114,16 +114,15 @@ class BaseOutputLayer(BasePort):
             except KeyError:
                 pass
 
-class BaseInputLayer(object):
 
-    def get_input(self):
+class BaseInputLayer(object):
+    def get_input(self, block_for_input=True):
         raise NotImplementedError
 
 
 class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
-    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=timedelta(seconds=5),
-                 *args, **kwargs):
+    def __init__(self, *args, signal_in=None, name="layer", print_fps=False, print_fps_every=timedelta(seconds=5), **kwargs):
         super().__init__(*args, **kwargs)
         self.name = name
         self.counter = 0
@@ -175,31 +174,38 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def handle_signal(self, signal):
         pass
 
+    def update(self):
+        pass
+
+    def process(self, block_for_input=True):
+        if self.pause_event.is_set():
+            sleep(1)
+            return
+        self.update()
+        self.get_signal()
+        data = self.get_input(block_for_input=block_for_input)
+        if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
+            self.stop()
+            return
+
+        if data is None or (isinstance(data, LayerSignal) and data == LayerSignal.FLUSH):
+            return
+
+        if self.is_first:
+            self.post_init(data)
+            self.is_first = False
+        data_transformed = self.transform(data)
+        if data_transformed is None:
+            return
+        self.handle_output(data_transformed)
+        self.tick()
+        if isinstance(data, LayerSignal) and data_transformed == LayerSignal.STOP:
+            self.stop()
+        self.counter += 1
+
     def process_loop(self):
         while not self.stop_event.is_set():
-            if self.pause_event.is_set():
-                sleep(1)
-                continue
-            data = self.get_input()
-            if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
-                self.stop()
-                continue
-
-            if data is None or (isinstance(data, LayerSignal) and data == LayerSignal.FLUSH):
-                continue
-
-            self.get_signal()
-            if self.is_first:
-                self.post_init(data)
-                self.is_first = False
-            data_transformed = self.transform(data)
-            if data_transformed is None:
-                continue
-            self.handle_output(data_transformed)
-            self.tick()
-            if isinstance(data, LayerSignal) and data_transformed == LayerSignal.STOP:
-                self.stop()
-            self.counter += 1
+            self.process()
         self.handle_output(LayerSignal.STOP)
         self.shutdown()
 
@@ -246,6 +252,20 @@ class ThreadLayer(BaseLayer):
         if self.thread.is_alive():
             self.flush()
             self.thread.join()
+
+
+class SynchronousLayer(BaseLayer):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        LayerManager.session().add_layer(self, synchronous=True)
+
+    def start(self, *args, **kwargs):
+        super(SynchronousLayer, self).start(*args, **kwargs)
+        self.initialize()
+
+    def join(self):
+        pass
 
 
 class ProcessLayer(BaseLayer):
@@ -295,7 +315,7 @@ class ProducerMixin(BaseInputLayer):
         self.input_queue = ctx.Queue()
         super().__init__(*args, **kwargs)
 
-    def get_input(self):
+    def get_input(self, block_for_input=True):
         return self.input_queue.get()
 
     def supply_input(self, data):
@@ -320,22 +340,28 @@ class TransformMixin(BaseInputLayer):
         self.keys.append(key)
         self.ports_in[key] = port_in.get_output()
 
-    def get_input(self):
+    def get_input(self, block_for_input=True):
         if len(self.ports_in) == 0:
             return None
 
         data = None
-        if self.trigger == LayerTrigger.TIMER:
-            sleep(self.trigger_source)
+        if not block_for_input:
+            assert len(self.ports_in) == 1  # non blocking only works with 1 input port for now
             data = self.get_all_nowait(self.discard_old)
-        elif self.trigger == LayerTrigger.SLOWEST:
-            data = self.get_all(self.discard_old)
-        elif self.trigger == LayerTrigger.FASTEST:
-            data = self.get_any()
-        elif self.trigger == LayerTrigger.LAYER:
-            data = self.get_ensure_layer(self.trigger_source, self.discard_old)
+            if not data:
+                return None
         else:
-            assert False
+            if self.trigger == LayerTrigger.TIMER:
+                sleep(self.trigger_source)
+                data = self.get_all_nowait(self.discard_old)
+            elif self.trigger == LayerTrigger.SLOWEST:
+                data = self.get_all(self.discard_old)
+            elif self.trigger == LayerTrigger.FASTEST:
+                data = self.get_any()
+            elif self.trigger == LayerTrigger.LAYER:
+                data = self.get_ensure_layer(self.trigger_source, self.discard_old)
+            else:
+                assert False
 
         if self.keys[0] == 'default' and len(self.keys) == 1:
             return data['default']
