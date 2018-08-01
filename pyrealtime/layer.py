@@ -133,27 +133,15 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
         self.signal_in = None
         self.set_signal_in(signal_in)
 
-        self.count = 0
         self.start_time = None
-        self.reset()
-        self.print_fps_every = print_fps_every
+        # self.reset()
         self.print_fps = print_fps
-        self.fps = 0
-        self.last_tick_time = time.perf_counter()
+        self.fps_timer = utils.FPSTimer(print_fps_every)
         self.pause_event = None
 
     def tick(self):
-        self.last_tick_time = time.perf_counter()
-        self.count += 1
-        if self.last_tick_time - self.start_time >= self.print_fps_every.total_seconds():
-            self.fps = self.count / (self.last_tick_time - self.start_time)
-            if self.print_fps:
-                print(self.fps)
-            self.reset()
-
-    def reset(self):
-        self.count = 0
-        self.start_time = time.perf_counter()
+        if self.print_fps:
+            self.fps_timer.tick()
 
     def post_init(self, data):
         pass

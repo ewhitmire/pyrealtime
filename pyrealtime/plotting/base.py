@@ -2,6 +2,7 @@ import threading
 
 import matplotlib
 
+from pyrealtime import FPSTimer
 from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer
 
 import time
@@ -44,6 +45,11 @@ class FigureManager(ProcessLayer):
         self.create_fig = create_fig if create_fig is not None else FigureManager.default_create_fig
         self.anim = None
         self.fps = fps
+        self.print_anim_fps = self.print_fps
+        self.anim_fps_timer = FPSTimer(5)
+        if self.print_fps:
+            self.print_fps = False
+
         self.keep_plot_open = keep_plot_open
 
     @staticmethod
@@ -63,7 +69,7 @@ class FigureManager(ProcessLayer):
 
         # matplotlib.animation.Animation._blit_draw = _blit_draw
         self.anim = animation.FuncAnimation(self.fig, self.update_func, init_func=self.init_func, frames=None,
-                                      interval=1000 / self.fps, blit=True)
+                                      interval=1000 / self.fps, blit=True, save_count=0)
 
     def init_func(self):
         artists = []
@@ -75,6 +81,8 @@ class FigureManager(ProcessLayer):
     def update_func(self, frame):
         # print('update')
         artists = []
+        if self.print_anim_fps:
+            self.anim_fps_timer.tick()
         for plot_key in self.plot_layers.keys():
             plot_layer = self.plot_layers[plot_key]
             artists += plot_layer.anim_update(frame)
@@ -226,7 +234,7 @@ class PlotLayer(TransformMixin, ThreadLayer):
         #     lines += self.h_legend.get_lines()
         #     self.trigger_legend_redraw = False
         #     # self.fig_manager.anim._blit = False
-
+        # print(lines)
         return lines
 
     def create_fig(self, fig, ax):
@@ -326,6 +334,7 @@ class TimePlotLayer(PlotLayer):
         self.paused = False
         self.use_np = False
         self.num_ticks = 5
+        self.x_data = np.arange(window_size)
         # self.x_time_locs = np.linspace(0, window_size, self.num_ticks)
         # self.x_time = np.linspace(-window_size, 0, self.num_ticks)
 
@@ -333,7 +342,6 @@ class TimePlotLayer(PlotLayer):
         self.paused = not self.paused
 
     def draw_empty_plot(self, ax):
-
         ax_pause = plt.axes([0.81, 0.005, 0.1, 0.075])
         self.pause_button = Button(ax_pause, 'Pause')
         self.pause_button.on_clicked(self.pause)
@@ -356,7 +364,7 @@ class TimePlotLayer(PlotLayer):
         self.ax.set_xlim(0, self.window_size)
         # self.ax.set_xticks(self.x_time_locs)
         # self.ax.set_xticklabels(self.x_time)
-        self.ax.get_xaxis().set_animated(True)
+        # self.ax.get_xaxis().set_animated(True)
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
         for channel in range(self.n_channels):
@@ -371,16 +379,18 @@ class TimePlotLayer(PlotLayer):
 
     def update_fig(self, data):
         import numpy as np
-        x = np.linspace(1, self.window_size, self.window_size)
         for (i, series) in enumerate(self.series):
             if isinstance(data, np.ndarray):
-                series.set_data(x, data[:, i])
+                series.set_data(self.x_data, data[:, i])
             else:
-                series.set_data(x, data)
-        return self.series + [self.ax.get_xaxis()]
+                series.set_data(self.x_data, data)
+        # labels = self.ax.set_xticks(self.x_data)
+        # self.ax.get_xaxis().set_visible(True)
+        # print(self.ax.get_xticklabels()[0])
+        self.ax.set_xlim((self.x_data[0], self.x_data[-1]))
+        return self.series#+ [self.ax.get_xaxis()]# + labels
 
     def transform(self, data):
-
         if self.paused:
             return None
         # assert (len(data) < self.window_size)
@@ -414,7 +424,7 @@ class TimePlotLayer(PlotLayer):
                 self.buffer[-data_size:, :] = data
             else:
                 self.buffer[-1, :] = data
-
+        self.x_data += data_size
         # self.x_time += data_size
         # self.ax.set_xticklabels(self.x_time)
         super().transform(self.buffer)

@@ -65,10 +65,10 @@ class FPSTimer:
     def __init__(self, print_every_sec=5):
         self.ticks = 0
         self.print_every_sec = print_every_sec
-        self.last_print = time.time()
+        self.last_print = time.perf_counter()
 
     def tick(self):
-        this_time = time.time()
+        this_time = time.perf_counter()
         elapsed_time = this_time - self.last_print
         self.ticks += 1
         if elapsed_time > self.print_every_sec:
