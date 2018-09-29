@@ -122,8 +122,7 @@ class BaseInputLayer(object):
 
 class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
-    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=timedelta(seconds=5),
-                 *args, **kwargs):
+    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=5, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = name
         self.counter = 0
@@ -180,6 +179,8 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
             if self.pause_event.is_set():
                 sleep(1)
                 continue
+
+            self.get_signal()
             data = self.get_input()
             if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
                 self.stop()
@@ -188,7 +189,6 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
             if data is None or (isinstance(data, LayerSignal) and data == LayerSignal.FLUSH):
                 continue
 
-            self.get_signal()
             if self.is_first:
                 self.post_init(data)
                 self.is_first = False
@@ -390,19 +390,28 @@ class TransformMixin(BaseInputLayer):
             sleep(sleep_time)
             sleep_time *= 2
 
-    def get_ensure_layer(self, layer, discard_old):
+    def get_ensure_layer(self, layers, discard_old):
         data = {}
-        assert(layer in self.keys)
-        data[layer] = self.ports_in[layer].get()
+        if not isinstance(layers, list):
+            layers = [layers]
 
+        for layer in layers:
+            assert(layer in self.keys)
+            data[layer] = self.ports_in[layer].get()
         for key in self.keys:
-            if key == layer:
+            if key in layers:
+                if discard_old:
+                    try:
+                        while not self.ports_in[key].empty():
+                            data[key] = self.ports_in[key].get_nowait()
+                    except queue.Empty:
+                        pass
                 continue
             try:
-                while True:
-                    data[key] = self.ports_in[key].get_nowait()
-                    if not discard_old:
-                        break
+                data[key] = self.ports_in[key].get_nowait()
+                if discard_old:
+                    while not self.ports_in[key].empty():
+                        data[key] = self.ports_in[key].get_nowait()
             except queue.Empty:
                 pass
         return data

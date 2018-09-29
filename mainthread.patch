@@ -1,0 +1,82 @@
+diff --git a/pyrealtime/layer_manager.py b/pyrealtime/layer_manager.py
+index bc11333..8edff01 100644
+--- a/pyrealtime/layer_manager.py
++++ b/pyrealtime/layer_manager.py
+@@ -27,26 +27,37 @@ class LayerManager:
+             self.layers[layer] = only_monitor
+             return layer
+ 
+-        def run(self, show_monitor=False):
++        def run(self, show_monitor=False, main_thread=None):
+             """
+ 
+             :param show_monitor:
+             """
+-            self.start(show_monitor)
++            self.start(show_monitor, main_thread=main_thread)
+ 
+-            while not self.stop_event.is_set():
+-                self.handle_input()
++            if main_thread is not None:
+                 try:
+-                    time.sleep(0.1)
++                    main_thread.run_thread()
+                 except KeyboardInterrupt:
+                     self.stop_event.set()
+-            self.join()
+-
+-        def start(self, show_monitor=False):
++                self.join()
++            else:
++                while not self.stop_event.is_set():
++                    self.handle_input()
++                    try:
++                        time.sleep(0.1)
++                    except KeyboardInterrupt:
++                        self.stop_event.set()
++                self.join()
++
++        def start(self, show_monitor=False, main_thread=None):
+             self.show_monitor = show_monitor  # cache this so the forked process knows what to do
+             for (layer, only_monitor) in self.layers.items():
+                 if not only_monitor:
+-                    layer.start(self.stop_event, self.pause_event)
++                    if main_thread == layer:
++                        layer.stop_event = self.stop_event
++                        layer.pause_event = self.pause_event
++                    else:
++                        layer.start(self.stop_event, self.pause_event)
+ 
+             if show_monitor:
+                 self.start_monitor()
+diff --git a/pyrealtime/plotting/scatter.py b/pyrealtime/plotting/scatter.py
+index 470b398..8a5c326 100644
+--- a/pyrealtime/plotting/scatter.py
++++ b/pyrealtime/plotting/scatter.py
+@@ -22,8 +22,11 @@ class ScatterPlotLayer(PlotLayer):
+             self.ax.set_xlim(self.xlim)
+         if self.ylim is not None:
+             self.ax.set_ylim(self.ylim)
++        print(self.ax.get_xlim())
++        print(self.ax.get_ylim())
++        print(self.ax.get_aspect())
+         for channel in range(n_channels):
+-            handle = self.ax.scatter([], [], marker='.')
++            handle = self.ax.scatter([], [], marker='.', s=200, c='white')
+             self.series.append(handle)
+ 
+     def init_fig(self):
+diff --git a/pyrealtime/record_layer.py b/pyrealtime/record_layer.py
+index 4de3d85..ce3a943 100644
+--- a/pyrealtime/record_layer.py
++++ b/pyrealtime/record_layer.py
+@@ -40,6 +40,9 @@ class RecordLayer(TransformMixin, ThreadLayer):
+         self.file.write(line)
+         self.file.flush()
+ 
++    def shutdown(self):
++        self.file.close()
++
+     @staticmethod
+     def make_new_filename(prefix):
+         timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")

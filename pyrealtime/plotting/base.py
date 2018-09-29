@@ -1,7 +1,5 @@
 import threading
 
-import matplotlib
-
 from pyrealtime import FPSTimer
 from pyrealtime.layer import TransformMixin, ProcessLayer, ThreadLayer
 

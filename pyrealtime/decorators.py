@@ -29,6 +29,8 @@ def transformer(f=None, **kwargs):
     # Next time round we'll be decorating method.
     if f is None:
         return partial(transformer, **kwargs)
+    if 'name' not in kwargs:
+        kwargs['name'] = 'transformer'
     @wraps(f)
     def wrapper(input_layer, *args, **kwds):
         transform_layer = TransformLayer(input_layer, *args, transformer=f, **kwds, **kwargs)

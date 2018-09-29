@@ -40,6 +40,9 @@ class RecordLayer(TransformMixin, ThreadLayer):
         self.file.write(line)
         self.file.flush()
 
+    def shutdown(self):
+        self.file.close()
+
     @staticmethod
     def make_new_filename(prefix):
         timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
@@ -66,7 +69,7 @@ class PlaybackLayer(ProducerMixin, ThreadLayer):
     def get_input(self):
         line = self.file.readline()
         if len(line) == 0:
-            time.sleep(1)
+            self.stop()
             return None
         time.sleep(self.interval)
         return self.decode(line)
