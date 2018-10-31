@@ -80,6 +80,7 @@ class LayerManager:
                 if not only_monitor:
                     layer.join()
             self.reset()
+            time.sleep(1)
 
         def stop(self):
             self.stop_event.set()

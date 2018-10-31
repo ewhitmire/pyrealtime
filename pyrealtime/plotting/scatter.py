@@ -3,10 +3,11 @@ from pyrealtime.plotting.base import PlotLayer
 
 class ScatterPlotLayer(PlotLayer):
 
-    def __init__(self, port_in, xlim=None, ylim=None, *args, **kwargs):
+    def __init__(self, port_in, *args, xlim=None, ylim=None, scatter_kwargs=None, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         self.xlim = xlim
         self.ylim = ylim
+        self.scatter_kwargs = scatter_kwargs if scatter_kwargs is not None else {}
 
     def draw_empty_plot(self, ax):
         return []
@@ -15,6 +16,7 @@ class ScatterPlotLayer(PlotLayer):
         n_channels = 1
         import numpy as np
         if isinstance(data, np.ndarray):
+            print(data.shape)
             n_channels = data.shape[1]
 
         self.series = []
@@ -23,7 +25,7 @@ class ScatterPlotLayer(PlotLayer):
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim)
         for channel in range(n_channels):
-            handle = self.ax.scatter([], [], marker='.')
+            handle = self.ax.scatter([], [], marker='.', **self.scatter_kwargs)
             self.series.append(handle)
 
     def init_fig(self):
@@ -32,6 +34,7 @@ class ScatterPlotLayer(PlotLayer):
         return self.series
 
     def update_fig(self, data):
+        # return []
         import numpy as np
         for (i, series) in enumerate(self.series):
             if isinstance(data, np.ndarray) and len(data.shape) > 2:
@@ -85,7 +88,7 @@ class AggregateScatterPlotLayer(ScatterPlotLayer):
     def update_fig(self, data):
         import numpy as np
         for (i, series) in enumerate(self.series):
-            if isinstance(data, np.ndarray):
+            if isinstance(data, np.ndarray) and len(data.shape) > 2:
                 series.set_offsets(data[:, i, :])
             else:
                 series.set_offsets(data)
@@ -105,16 +108,15 @@ class AggregateScatterPlotLayer(ScatterPlotLayer):
             else:
                 self.buffer[-1, :] = data
         else:
-            if isinstance(data, list):
+            if isinstance(data, list) and hasattr(data[0], '__len__'):
                 data_size = len(data)
             else:
                 data_size = 1
             self.buffer[0:-data_size] = self.buffer[data_size:]
-            if isinstance(data, list):
+            if isinstance(data, list) and hasattr(data[0], '__len__'):
                 self.buffer[-data_size:] = data
             else:
                 self.buffer[-1] = data
-
         # self.x_time += data_size
         # self.ax.set_xticklabels(self.x_time)
         super().transform(self.buffer)

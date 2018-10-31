@@ -132,6 +132,7 @@ class UDPReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
         self.socket = None
         self.packet_count = 0
         self.bufsize = bufsize
+        self.last_time = 0
 
     @classmethod
     def from_socket(cls, sock, *args, **kwargs):
@@ -151,9 +152,19 @@ class UDPReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
             self.socket = self.make_socket()
 
     def get_input(self):
+
+        # current = time.perf_counter()
+        # print('pre', (current - self.last_time) * 1000)
+        # self.last_time = current
+
         packet, address = self.socket.recvfrom(self.bufsize)
         self.packet_count += 1
         data = self._decode(packet)
+
+        current = time.perf_counter()
+        # print('post', (current - self.last_time) * 1000)
+        self.last_time = current
+
         return data
 
 

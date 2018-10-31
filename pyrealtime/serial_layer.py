@@ -108,7 +108,13 @@ class SerialReadLayer(ProducerMixin, DecoderMixin, ThreadLayer):
 
         if self.ser is None:
             port = find_serial_port(self.device_name)
-            self.ser = serial.Serial(port, self.baud_rate, timeout=5)
+            for i in range(5):
+                try:
+                    self.ser = serial.Serial(port, self.baud_rate, timeout=5)
+                    break
+                except serial.SerialException:
+                    time.sleep(.1)
+                    pass
 
         if not self.ser.is_open:
             raise RuntimeError("Serial port not open")
