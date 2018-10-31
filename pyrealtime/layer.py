@@ -122,7 +122,7 @@ class BaseInputLayer(object):
 
 class BaseLayer(BaseInputLayer, BaseOutputLayer):
 
-    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=timedelta(seconds=5),
+    def __init__(self, signal_in=None, name="layer", print_fps=False, print_fps_every=5,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = name

@@ -4,6 +4,7 @@ import pyrealtime as prt
 
 def gen_dummy_data(counter):
     data = np.random.randint(100, size=(3,))
+    data = np.array([np.sin(counter / 100 * 2 * np.pi), np.sin(counter / 100 * 2 * np.pi + 1), np.sin(counter / 100 * 2 * np.pi + 2)])
     return data
 
 
@@ -18,12 +19,12 @@ def create_fig(fig):
 
 
 def main():
-    raw_data = prt.InputLayer(gen_dummy_data, rate=5000, name="dummy input")
+    raw_data = prt.InputLayer(gen_dummy_data, rate=100, name="dummy input")
     decode_layer = prt.TransformLayer(raw_data, transformer=decode, name="decode_layer", multi_output=True)
 
-    fig_manager = prt.FigureManager(create_fig=create_fig)
-    prt.TimePlotLayer(decode_layer.get_port('x1'), plot_key='x1', window_size=1000, ylim=(0,100), fig_manager=fig_manager)
-    prt.BarPlotLayer(decode_layer.get_port('x2'), plot_key='x2', ylim=(0,100), fig_manager=fig_manager)
+    fig_manager = prt.FigureManager(create_fig=create_fig, fps=200)
+    prt.TimePlotLayer(decode_layer.get_port('x1'), plot_key='x1', window_size=1000, ylim=(-1,1), fig_manager=fig_manager)
+    prt.BarPlotLayer(decode_layer.get_port('x2'), plot_key='x2', ylim=(-1,1), fig_manager=fig_manager)
     prt.LayerManager.session().run()
 
 
