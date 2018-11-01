@@ -1,5 +1,10 @@
+import sys
+if sys.version_info < (3,0):
+    sys.exit('Sorry, Python 2 is not supported')
+
 from setuptools import setup, find_packages
 from pyrealtime import __version__
+
 
 setup(
     name="PyRealtime",
