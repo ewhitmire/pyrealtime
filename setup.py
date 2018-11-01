@@ -15,5 +15,5 @@ setup(
     author_email='emwhit@cs.washington.edu',
     url='https://github.com/ewhitmire/pyrealtime',
     keywords=['realtime', 'plotting', 'serialport', 'logging', 'pipeline'],
-    test_suite = 'nose.collector',
+    test_suite='nose.collector',
 )
