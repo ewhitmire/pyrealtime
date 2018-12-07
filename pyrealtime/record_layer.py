@@ -3,30 +3,40 @@ from datetime import datetime
 import numpy as np
 import time
 
-from pyrealtime.layer import ThreadLayer, TransformMixin, ProducerMixin
+from pyrealtime.layer import ThreadLayer, TransformMixin, ProducerMixin, EncoderMixin
 
 
-class RecordLayer(TransformMixin, ThreadLayer):
-    def __init__(self, port_in, filename=None, encoder=None, file_prefix="recording", append_time=False, *args, **kwargs):
+class RecordLayer(TransformMixin, EncoderMixin, ThreadLayer):
+    def __init__(self, port_in, filename=None, file_prefix="recording", append_time=False, split_axis=None, *args, **kwargs):
         super().__init__(port_in, *args, **kwargs)
         if filename is None:
             filename = RecordLayer.make_new_filename(file_prefix)
         self.filename = filename
         self.file = None
         self.append_time = append_time
-        self.encoder = encoder if encoder is not None else self.encode
+        self.split_axis = split_axis
 
     def encode(self, data):
         if isinstance(data, list):
             line = ",".join([str(x) for x in data])
         elif isinstance(data, np.ndarray):
-            line = ",".join([str(x) for x in data.tolist()])
+            if self.split_axis is not None:
+                line = ""
+                # for i in range(c.shape[self.split_axis]):
+                shape = [None] * len(data.shape)
+                for i in range(data.shape[self.split_axis]):
+                    shape[self.split_axis] = i
+                    line += ",".join([str(x) for x in np.squeeze(data[tuple(shape)]).tolist()]) + "\n"
+            else:
+                line = ",".join([str(x) for x in data.tolist()])
         else:
             line = str(data)
 
         if self.append_time:
             line = "%f,%s" % (time.time(), line)
-        line += "\n"
+
+        if line[-1] != "\n":
+            line += "\n"
 
         return line.encode('utf-8')
 
@@ -36,8 +46,7 @@ class RecordLayer(TransformMixin, ThreadLayer):
         self.file.flush()
 
     def transform(self, data):
-        line = self.encoder(data)
-        self.file.write(line)
+        self.file.write(self._encode(data))
         self.file.flush()
 
     def shutdown(self):

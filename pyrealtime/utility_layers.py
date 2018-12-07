@@ -346,6 +346,6 @@ class SplitLayer(TransformMixin, ThreadLayer):
 
     def transform(self, data):
         for i in range(len(data)):
-            if not i == 0:
-                self.tick()
+            # if not i == 0:
+            self.tick()
             self.handle_output(data[i])

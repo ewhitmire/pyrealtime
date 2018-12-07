@@ -385,7 +385,7 @@ class TimePlotLayer(PlotLayer):
         # labels = self.ax.set_xticks(self.x_data)
         # self.ax.get_xaxis().set_visible(True)
         # print(self.ax.get_xticklabels()[0])
-        self.ax.set_xlim((self.x_data[0], self.x_data[-1]))
+        # self.ax.set_xlim((self.x_data[0], self.x_data[-1]))
         return self.series#+ [self.ax.get_xaxis()]# + labels
 
     def transform(self, data):
@@ -422,7 +422,7 @@ class TimePlotLayer(PlotLayer):
                 self.buffer[-data_size:, :] = data
             else:
                 self.buffer[-1, :] = data
-        self.x_data += data_size
+        # self.x_data += data_size
         # self.x_time += data_size
         # self.ax.set_xticklabels(self.x_time)
         super().transform(self.buffer)
