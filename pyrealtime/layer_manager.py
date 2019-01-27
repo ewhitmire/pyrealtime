@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing
 import threading
 
@@ -32,7 +33,11 @@ class LayerManager:
 
             :param show_monitor:
             """
-            self.start(show_monitor, main_thread=main_thread)
+            coros = self.start(show_monitor, main_thread=main_thread)
+
+            # asyncio.run(coros)
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(coros)
 
             if main_thread is not None:
                 try:
@@ -49,18 +54,22 @@ class LayerManager:
                         self.stop_event.set()
                 self.join()
 
-        def start(self, show_monitor=False, main_thread=None):
+        async def start(self, show_monitor=False, main_thread=None):
             self.show_monitor = show_monitor  # cache this so the forked process knows what to do
+            coros = []
             for (layer, only_monitor) in self.layers.items():
                 if not only_monitor:
                     if main_thread == layer:
                         layer.stop_event = self.stop_event
                         layer.pause_event = self.pause_event
                     else:
-                        layer.start(self.stop_event, self.pause_event)
+                        coro = layer.start(self.stop_event, self.pause_event)
+                        if coro is not None:
+                            coros.append(coro)
 
             if show_monitor:
                 self.start_monitor()
+            return await asyncio.gather(*coros)
 
         def start_monitor(self):
             t = threading.Thread(target=self.monitor_thread)

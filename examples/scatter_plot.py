@@ -15,14 +15,15 @@ def main():
 
     # Buffer some data and plot the entire buffer
     buffered_data = prt.BufferLayer(data, buffer_size=10)
-    prt.ScatterPlotLayer(buffered_data, xlim=(-1,1), ylim=(-1,1))
-
-    # Use internal buffer
-    prt.AggregateScatterPlotLayer(data, buffer_size=500, xlim=(-1,1), ylim=(-1,1))
-
-    # Without using numpy
-    list_data = prt.InputLayer(gen_randn_list, rate=30)
-    prt.AggregateScatterPlotLayer(list_data, buffer_size=500, xlim=(-1,1), ylim=(-1,1))
+    fm = prt.FigureManager()
+    prt.ScatterPlotLayer(buffered_data, xlim=(-1,1), ylim=(-1,1), fig_manager=fm)
+    #
+    # # Use internal buffer
+    # prt.AggregateScatterPlotLayer(data, buffer_size=500, xlim=(-1,1), ylim=(-1,1))
+    #
+    # # Without using numpy
+    # list_data = prt.InputLayer(gen_randn_list, rate=30)
+    # prt.AggregateScatterPlotLayer(list_data, buffer_size=500, xlim=(-1,1), ylim=(-1,1))
 
     prt.LayerManager.session().run()
 

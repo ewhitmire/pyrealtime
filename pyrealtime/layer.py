@@ -1,6 +1,6 @@
-import queue
-import threading
+import asyncio
 import multiprocessing
+import threading
 from time import sleep
 import time
 from enum import Enum
@@ -41,18 +41,16 @@ class Port(BasePort):
         self.bufferer = buffer
 
     def get_output(self):
-        ctx = multiprocessing.get_context('spawn')
-        # out_queue = ctx.Queue()
-        out_queue = utils.Queue(ctx=ctx) # .get_context()
+        out_queue = asyncio.Queue()
         self.out_queues.append(out_queue)
         return out_queue
 
-    def handle_output(self, data):
+    async def handle_output(self, data):
         buffered_data = self.buffer(data)
         for slice in buffered_data:
             if slice is not None:
                 for queue in self.out_queues:
-                    queue.put(slice)
+                    await queue.put(slice)
 
     def buffer(self, data):
         return self.bufferer.buffer(data)
@@ -90,7 +88,7 @@ class BaseOutputLayer(BasePort):
         # TODO: allow buffering of child ports
         port_list[port] = Port()
 
-    def handle_output(self, data):
+    async def handle_output(self, data):
         if data is not None:
             if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
                 self.stop()
@@ -99,7 +97,7 @@ class BaseOutputLayer(BasePort):
             if self.multi_output:
                 self.handle_multi_output(data)
 
-            self.out_port.handle_output(data)
+            await self.out_port.handle_output(data)
 
     def handle_multi_output(self, data):
         for key in list(self.ports.keys()) + list(self.auto_ports.keys()):
@@ -113,6 +111,7 @@ class BaseOutputLayer(BasePort):
                 port.handle_output(data[key])
             except KeyError:
                 pass
+
 
 class BaseInputLayer(object):
 
@@ -174,14 +173,16 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
     def handle_signal(self, signal):
         pass
 
-    def process_loop(self):
-        while not self.stop_event.is_set():
-            if self.pause_event.is_set():
-                sleep(1)
-                continue
+    async def process_loop(self):
+        while True:
+            # while not self.stop_event.is_set():
+            #     if self.pause_event.is_set():
+            #         sleep(1)
+            #         continue
 
             self.get_signal()
-            data = self.get_input()
+            data = await self.get_input()
+
             if isinstance(data, LayerSignal) and data == LayerSignal.STOP:
                 self.stop()
                 continue
@@ -195,13 +196,14 @@ class BaseLayer(BaseInputLayer, BaseOutputLayer):
             data_transformed = self.transform(data)
             if data_transformed is None:
                 continue
-            self.handle_output(data_transformed)
+            await self.handle_output(data_transformed)
             self.tick()
             if isinstance(data, LayerSignal) and data_transformed == LayerSignal.STOP:
                 self.stop()
             self.counter += 1
-        self.handle_output(LayerSignal.STOP)
-        self.shutdown()
+
+            # self.handle_output(LayerSignal.STOP)
+            # self.shutdown()
 
     def shutdown(self):
         pass
@@ -215,20 +217,20 @@ class ThreadLayer(BaseLayer):
         # print("thread layer init")
         super().__init__(*args, **kwargs)
         if parent_proc is not None:
-            self.thread = parent_proc.register_child_thread(self)
-            LayerManager.session().add_layer(self, only_monitor=True)
+            self.thread = parent_proc.register_child_layer(self)
+            # parent_proc.manager.add_layer(self)
         else:
-            self.create_thread()
+            # self.create_thread()
             LayerManager.session().add_layer(self)
 
-    def register_child_thread(self, *args, **kwargs):
-        # threads can't have child threads. Pass along to parent proc.
-        self.create_thread()
-        LayerManager.session().add_layer(self)
+    # def register_child_thread(self, *args, **kwargs):
+    #     # threads can't have child threads. Pass along to parent proc.
+    #     self.create_thread()
+    #     LayerManager.session().add_layer(self)
 
-    def create_thread(self):
-        self.thread = threading.Thread(target=self.run_thread, name=self.name)
-        self.thread.daemon = True
+    # def create_thread(self):
+    #     self.thread = threading.Thread(target=self.run_thread, name=self.name)
+    #     self.thread.daemon = True
 
     def run_thread(self):
         try:
@@ -236,11 +238,12 @@ class ThreadLayer(BaseLayer):
         except:
             self.stop()
             raise
-        self.process_loop()
+        return self.process_loop()
 
     def start(self, *args, **kwargs):
-        super(ThreadLayer, self).start(*args, **kwargs)
-        self.thread.start()
+        # super(ThreadLayer, self).start(*args, **kwargs)
+        # self.thread.start()
+        return self.run_thread()
 
     def join(self):
         if self.thread.is_alive():
@@ -254,52 +257,60 @@ class ProcessLayer(BaseLayer):
         super().__init__(*args, **kwargs)
         ctx = multiprocessing.get_context('spawn')
         self.process = ctx.Process(target=self.run_proc)
-        self.thread_layers = []
+        self.child_layers = []
         LayerManager.session().add_layer(self)
 
     def run_proc(self):
-        self.init_child_threads()
         self.initialize()
-        t = threading.Thread(target=self.process_loop)
+
+        t = threading.Thread(target=self.background_thread)
         t.daemon = False
         t.start()
 
-        for thread_layer in self.thread_layers:
-            # thread_layer.create_thread()
-            thread_layer.start(stop_event=self.stop_event, pause_event=self.pause_event)
 
         self.main_thread_post_init()
+
+    def background_thread(self):
+        # pass
+        loop = asyncio.new_event_loop()
+
+        coros = []
+        for layer in self.child_layers:
+            coro = layer.start()
+            coros.append(coro)
+
+        if len(coros) > 0:
+            loop.run_until_complete(asyncio.gather(*coros))
+        else:
+            print("Warning: Nothing for background_thread to do")
 
     def main_thread_post_init(self):
         pass
 
     def start(self, *args, **kwargs):
-        super(ProcessLayer, self).start(*args, **kwargs)
+        # super(ProcessLayer, self).start(*args, **kwargs)
         self.process.start()
+        return None
 
     def join(self):
         self.process.join()
 
-    def init_child_threads(self):
-        for thread_layer in self.thread_layers:
-            thread_layer.create_thread()
-
-    def register_child_thread(self, thread_layer):
-        self.thread_layers.append(thread_layer)
+    def register_child_layer(self, layer):
+        self.child_layers.append(layer)
 
 
 class ProducerMixin(BaseInputLayer):
 
     def __init__(self, *args, **kwargs):
-        ctx = multiprocessing.get_context('spawn')
-        self.input_queue = ctx.Queue()
+        self.input_queue = asyncio.Queue()
         super().__init__(*args, **kwargs)
 
-    def get_input(self):
+
+    async def get_input(self):
         return self.input_queue.get()
 
     def supply_input(self, data):
-        self.input_queue.put(data)
+        self.input_queue.put_nowait(data)
 
 
 class TransformMixin(BaseInputLayer):
@@ -320,20 +331,21 @@ class TransformMixin(BaseInputLayer):
         self.keys.append(key)
         self.ports_in[key] = port_in.get_output()
 
-    def get_input(self):
+    async def get_input(self):
+
         if len(self.ports_in) == 0:
             return None
 
         data = None
         if self.trigger == LayerTrigger.TIMER:
             sleep(self.trigger_source)
-            data = self.get_all_nowait(self.discard_old)
+            data = await self.get_all_nowait(self.discard_old)
         elif self.trigger == LayerTrigger.SLOWEST:
-            data = self.get_all(self.discard_old)
+            data = await self.get_all(self.discard_old)
         elif self.trigger == LayerTrigger.FASTEST:
-            data = self.get_any()
+            data = await self.get_any()
         elif self.trigger == LayerTrigger.LAYER:
-            data = self.get_ensure_layer(self.trigger_source, self.discard_old)
+            data = await self.get_ensure_layer(self.trigger_source, self.discard_old)
         else:
             assert False
 
@@ -350,19 +362,19 @@ class TransformMixin(BaseInputLayer):
         for key in self.ports_in:
             self.supply_input(LayerSignal.FLUSH, key=key)
 
-    def get_all(self, discard_old):
+    async def get_all(self, discard_old):
         data = {}
         for key in self.keys:
-            data[key] = self.ports_in[key].get()
+            data[key] = await self.ports_in[key].get()
             if discard_old:
                 try:
                     while True:
                         data[key] = self.ports_in[key].get_nowait()
-                except queue.Empty:
+                except asyncio.QueueEmpty:
                     pass
         return data
 
-    def get_all_nowait(self, discard_old):
+    async def get_all_nowait(self, discard_old):
         data = {}
         for key in self.keys:
             try:
@@ -370,11 +382,11 @@ class TransformMixin(BaseInputLayer):
                     data[key] = self.ports_in[key].get_nowait()
                     if not discard_old:
                         break
-            except queue.Empty:
+            except asyncio.QueueEmpty:
                 pass
         return data
 
-    def get_any(self):
+    async def get_any(self):
         value = None
         data = {}
         sleep_time = 0.001
@@ -382,7 +394,7 @@ class TransformMixin(BaseInputLayer):
             for key in self.keys:
                 try:
                     value = self.ports_in[key].get_nowait()
-                except queue.Empty:
+                except asyncio.QueueEmpty:
                     pass
                 if value is not None:
                     data[key] = value
@@ -390,7 +402,7 @@ class TransformMixin(BaseInputLayer):
             sleep(sleep_time)
             sleep_time *= 2
 
-    def get_ensure_layer(self, layers, discard_old):
+    async def get_ensure_layer(self, layers, discard_old):
         data = {}
         if not isinstance(layers, list):
             layers = [layers]
@@ -404,7 +416,7 @@ class TransformMixin(BaseInputLayer):
                     try:
                         while not self.ports_in[key].empty():
                             data[key] = self.ports_in[key].get_nowait()
-                    except queue.Empty:
+                    except asyncio.QueueEmpty:
                         pass
                 continue
             try:
@@ -412,7 +424,7 @@ class TransformMixin(BaseInputLayer):
                 if discard_old:
                     while not self.ports_in[key].empty():
                         data[key] = self.ports_in[key].get_nowait()
-            except queue.Empty:
+            except asyncio.QueueEmpty:
                 pass
         return data
 

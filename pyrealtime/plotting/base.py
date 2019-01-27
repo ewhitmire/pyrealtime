@@ -184,7 +184,7 @@ class InProcFigureManager(ThreadLayer):
         super().shutdown()
 
 
-class PlotLayer(TransformMixin, ThreadLayer):
+class PlotLayer():#TransformMixin, ThreadLayer):
 
     def __init__(self, port_in, samples=10, fig_manager=None, plot_config=None, plot_key=None, create_fig=None, legend=False, *args, **kwargs):
         self.data_lock = None

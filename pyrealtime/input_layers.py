@@ -1,3 +1,4 @@
+import asyncio
 import queue
 import time
 from threading import Timer, Event
@@ -15,26 +16,14 @@ class InputLayer(ProducerMixin, ThreadLayer):
     def generate(self, counter):
         return counter
 
-    def get_input(self):
-        time.sleep(1./self.rate)
+    async def get_input(self):
+        await asyncio.sleep(1./self.rate)
         data = self._generate(self.counter)
         return data
 
 
 class CustomInputLayer(ProducerMixin, ThreadLayer):
-    def __init__(self, *args, **kwargs):
-        super().__init__( *args, **kwargs)
-        self.custom_input_queue = queue.Queue()
-
-    def supply_input(self, data):
-        self.custom_input_queue.put(data)
-
-    def get_input(self):
-        try:
-            data = self.custom_input_queue.get(True, 1)
-        except queue.Empty:
-            return None
-        return data
+    pass
 
 
 class OneShotInputLayer(ProducerMixin, ThreadLayer):
