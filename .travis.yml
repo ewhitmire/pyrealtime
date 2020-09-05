@@ -2,9 +2,10 @@ language: python
 python:
 - '3.6'
 install:
-- python setup.py install
+- python -m pip install .
+- python -m pip install nose
 script:
-- python setup.py test
+- nosetests
 deploy:
   provider: pypi
   user: ewhitmire
