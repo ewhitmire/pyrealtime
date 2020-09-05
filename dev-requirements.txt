@@ -1,4 +1,0 @@
-scipy
-pygame
-pyserial
-nose
