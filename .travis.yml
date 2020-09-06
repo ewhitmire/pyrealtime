@@ -2,7 +2,7 @@ language: python
 python:
 - '3.6'
 install:
-- python -m pip install .
+- python -m pip install .[all]
 - python -m pip install nose
 script:
 - nosetests
